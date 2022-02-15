@@ -70,6 +70,7 @@ class PcmVolume {
 	bool convert;
 
 	unsigned volume;
+	unsigned rg;
 
 	PcmBuffer buffer;
 	PcmDither dither;
@@ -84,6 +85,10 @@ public:
 
 	unsigned GetVolume() const noexcept {
 		return volume;
+	}
+
+	unsigned GetRgScale() const noexcept {
+		return rg;
 	}
 
 	/**

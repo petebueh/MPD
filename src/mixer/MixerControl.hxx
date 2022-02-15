@@ -66,10 +66,16 @@ mixer_auto_close(Mixer *mixer);
 int
 mixer_get_volume(Mixer *mixer);
 
+int
+mixer_get_rg(Mixer *mixer);
+
 /**
  * Throws std::runtime_error on error.
  */
 void
 mixer_set_volume(Mixer *mixer, unsigned volume);
+
+void
+mixer_set_rg(Mixer *mixer, unsigned rg);
 
 #endif

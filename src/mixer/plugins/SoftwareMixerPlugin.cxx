@@ -32,6 +32,7 @@ class SoftwareMixer final : public Mixer {
 	 * The current volume in percent (0..100).
 	 */
 	unsigned volume = 100;
+	unsigned rg = 100;
 
 public:
 	explicit SoftwareMixer(MixerListener &_listener)
@@ -51,8 +52,14 @@ public:
 	int GetVolume() override {
 		return volume;
 	}
+	
+	int GetRgScale() override {
+		return rg;
+	}
 
 	void SetVolume(unsigned volume) override;
+	
+	void SetRg(unsigned rg) override;
 };
 
 static Mixer *
@@ -89,6 +96,17 @@ SoftwareMixer::SetVolume(unsigned new_volume)
 
 	if (filter != nullptr)
 		volume_filter_set(filter, PercentVolumeToSoftwareVolume(new_volume));
+}
+
+void
+SoftwareMixer::SetRg(unsigned new_rg)
+{
+	assert(new_rg <= 999);
+
+	rg = new_rg;
+
+	if (filter != nullptr)
+		volume_filter_set(filter, PercentVolumeToSoftwareVolume(new_rg));
 }
 
 const MixerPlugin software_mixer_plugin = {

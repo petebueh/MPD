@@ -164,12 +164,12 @@ ReplayGainFilter::Update()
 	if (mixer != nullptr) {
 		/* update the hardware mixer volume */
 
-		unsigned _volume = (volume * base) / PCM_VOLUME_1;
-		if (_volume > 100)
-			_volume = 100;
+		unsigned _rg = (volume * base) / PCM_VOLUME_1;
+		if (_rg > 999)
+			_rg = 999;
 
 		try {
-			mixer_set_volume(mixer, _volume);
+			mixer_set_rg(mixer, _rg);
 
 			/* TODO: emit this idle event only for the
 			   current partition */

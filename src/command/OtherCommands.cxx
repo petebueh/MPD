@@ -321,6 +321,18 @@ handle_rescan(Client &client, Request args, Response &r)
 }
 
 CommandResult
+handle_getrg(Client &client, Request, Response &r)
+{
+	auto &partition = client.GetPartition();
+
+	const auto rg = rg_level_get(partition.outputs);
+	if (rg >= 0)
+		r.Fmt(FMT_STRING("rg: {}\n"), rg);
+
+	return CommandResult::OK;
+}
+
+CommandResult
 handle_getvol(Client &client, Request, Response &r)
 {
 	auto &partition = client.GetPartition();

@@ -24,11 +24,12 @@ class NullMixer final : public Mixer {
 	 * The current volume in percent (0..100).
 	 */
 	unsigned volume;
+	unsigned rg;
 
 public:
 	explicit NullMixer(MixerListener &_listener)
 		:Mixer(null_mixer_plugin, _listener),
-		 volume(100)
+		 volume(100), rg(100)
 	{
 	}
 
@@ -42,9 +43,16 @@ public:
 	int GetVolume() override {
 		return volume;
 	}
+	
+	int GetRgScale() override {
+		return rg;
+	}
 
 	void SetVolume(unsigned _volume) override {
 		volume = _volume;
+	}
+	void SetRg(unsigned _rg) override {
+		rg = _rg;
 	}
 };
 

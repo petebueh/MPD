@@ -51,6 +51,9 @@ CommandResult
 handle_getvol(Client &client, Request request, Response &response);
 
 CommandResult
+handle_getrg(Client &client, Request request, Response &response);
+
+CommandResult
 handle_setvol(Client &client, Request request, Response &response);
 
 CommandResult

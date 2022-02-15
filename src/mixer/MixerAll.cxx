@@ -25,6 +25,7 @@
 #include "pcm/Volume.hxx"
 #include "util/Domain.hxx"
 #include "Log.hxx"
+#include "Idle.hxx"
 
 #include <cassert>
 
@@ -71,6 +72,47 @@ MultipleOutputs::GetVolume() const noexcept
 	return total / ok;
 }
 
+gcc_pure
+static int
+output_mixer_get_rg(const AudioOutputControl &ao) noexcept
+{
+	if (!ao.IsEnabled())
+		return -1;
+
+	auto *mixer = ao.GetMixer();
+	if (mixer == nullptr)
+		return -1;
+
+	try {
+		return mixer_get_rg(mixer);
+	} catch (...) {
+		FmtError(mixer_domain,
+			 "Failed to read mixer for '{}': {}",
+			 ao.GetName(), std::current_exception());
+		return -1;
+	}
+}
+
+int
+MultipleOutputs::GetRgScale() const noexcept
+{
+	unsigned okrg = 0;
+	int totalrg = 0;
+
+	for (const auto &ao : outputs) {
+		int rg = output_mixer_get_rg(*ao);
+		if (rg >= 0) {
+			totalrg += rg;
+			++okrg;
+		}
+	}
+
+	if (okrg == 0)
+		return -1;
+
+	return totalrg / okrg;
+}
+
 static bool
 output_mixer_set_volume(AudioOutputControl &ao, unsigned volume) noexcept
 {
@@ -102,6 +144,43 @@ MultipleOutputs::SetVolume(unsigned volume) noexcept
 	bool success = false;
 	for (const auto &ao : outputs)
 		success = output_mixer_set_volume(*ao, volume)
+			|| success;
+
+	return success;
+}
+
+static bool
+output_mixer_set_rg(AudioOutputControl &ao, unsigned rg) noexcept
+{
+	assert(rg <= 999);
+
+	if (!ao.IsEnabled())
+		return false;
+
+	auto *mixer = ao.GetMixer();
+	if (mixer == nullptr)
+		return false;
+
+	try {
+		mixer_set_rg(mixer, rg);
+		idle_add(IDLE_MIXER);
+		return true;
+	} catch (...) {
+		FmtError(mixer_domain,
+			 "Failed to set replay gain for '{}': {}",
+			 ao.GetName(), std::current_exception());
+		return false;
+	}
+}
+
+bool
+MultipleOutputs::SetRg(unsigned rg) noexcept
+{
+	assert(rg <= 999);
+
+	bool success = false;
+	for (const auto &ao : outputs)
+		success = output_mixer_set_rg(*ao, rg)
 			|| success;
 
 	return success;

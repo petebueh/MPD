@@ -84,6 +84,8 @@ public:
 	 * unavailable
 	 */
 	virtual int GetVolume() = 0;
+	
+	virtual int GetRgScale() = 0;
 
 	/**
 	 * Sets the volume.
@@ -93,6 +95,9 @@ public:
 	 * @param volume the new volume (0..100 including)
 	 */
 	virtual void SetVolume(unsigned volume) = 0;
+	
+	virtual void SetRg(unsigned rg) = 0;
+
 };
 
 #endif

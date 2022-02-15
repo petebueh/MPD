@@ -60,6 +60,18 @@ volume_level_get(const MultipleOutputs &outputs) noexcept
 	return last_hardware_volume;
 }
 
+static int last_hardware_rg = -1;
+
+int
+rg_level_get(const MultipleOutputs &outputs) noexcept
+{
+	last_hardware_rg = outputs.GetRgScale();
+	
+	return last_hardware_rg;
+}
+
+
+
 static bool
 software_volume_change(MultipleOutputs &outputs, unsigned volume)
 {

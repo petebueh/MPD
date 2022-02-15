@@ -134,6 +134,30 @@ mixer_get_volume(Mixer *mixer)
 	return volume;
 }
 
+int
+mixer_get_rg(Mixer *mixer)
+{
+	int rg;
+
+	assert(mixer != nullptr);
+
+	if (mixer->plugin.global && !mixer->failed)
+		mixer_open(mixer);
+
+	const std::scoped_lock<Mutex> protect(mixer->mutex);
+
+	if (mixer->open) {
+		try {
+			rg = mixer->GetRgScale();
+		} catch (...) {
+			mixer_failed(mixer);
+			throw;
+		}
+	} else
+		rg = -1;
+
+	return rg;
+}
 void
 mixer_set_volume(Mixer *mixer, unsigned volume)
 {
@@ -147,4 +171,19 @@ mixer_set_volume(Mixer *mixer, unsigned volume)
 
 	if (mixer->open)
 		mixer->SetVolume(volume);
+}
+
+void
+mixer_set_rg(Mixer *mixer, unsigned rg)
+{
+	assert(mixer != nullptr);
+	assert(rg <= 999);
+
+	if (mixer->plugin.global && !mixer->failed)
+		mixer_open(mixer);
+
+	const std::scoped_lock<Mutex> protect(mixer->mutex);
+
+	if (mixer->open)
+		mixer->SetRg(rg);
 }
