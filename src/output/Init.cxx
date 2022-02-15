@@ -297,7 +297,7 @@ audio_output_new(EventLoop &normal_event_loop, EventLoop &rt_event_loop,
 	   other plugins like httpd don't need real-time so badly,
 	   because they have larger buffers */
 	// TODO: don't hard-code the plugin name
-	auto &event_loop = StringIsEqual(plugin->name, "alsa")
+	auto &event_loop = StringIsEqual(plugin->name, "jack")
 		? rt_event_loop
 		: normal_event_loop;
 
