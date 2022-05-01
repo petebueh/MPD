@@ -1,5 +1,8 @@
 /*
- * Copyright (C) 2008-2014 Max Kellermann <max.kellermann@gmail.com>
+ * Copyright 2022 CM4all GmbH
+ * All rights reserved.
+ *
+ * author: Max Kellermann <mk@cm4all.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,57 +30,30 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef MPD_VAR_SIZE_HXX
-#define MPD_VAR_SIZE_HXX
+#pragma once
 
-#include <type_traits>
-#include <utility>
-#include <new>
-#include <cstdlib>
+#ifdef __linux__
+# include <sys/prctl.h>
+
+/* fallback definitions if our libc is older than the kernel */
+# ifndef PR_SET_VMA
+#  define PR_SET_VMA 0x53564d41
+# endif
+# ifndef PR_SET_VMA_ANON_NAME
+#  define PR_SET_VMA_ANON_NAME 0
+# endif
+#endif // __linux__
 
 /**
- * Allocate and construct a variable-size object.  That is useful for
- * example when you want to store a variable-length string as the last
- * attribute without the overhead of a second allocation.
+ * Set a name for the specified virtual memory area.
  *
- * @tparam T a struct/class with a variable-size last attribute
- * @param declared_tail_size the declared size of the last element in
- * #T
- * @param real_tail_size the real required size of the last element in
- * #T
+ * This feature requires Linux 5.17.
  */
-template<class T, typename... Args>
-[[gnu::malloc]] [[gnu::returns_nonnull]]
-T *
-NewVarSize(size_t declared_tail_size, size_t real_tail_size, Args&&... args)
+inline void
+SetVmaName(const void *start, size_t len, const char *name)
 {
-	static_assert(std::is_standard_layout<T>::value,
-		      "Not standard-layout");
-
-	/* determine the total size of this instance */
-	size_t size = sizeof(T) - declared_tail_size + real_tail_size;
-
-	/* allocate memory */
-	T *instance = (T *)malloc(size);
-	if (instance == nullptr)
-		throw std::bad_alloc{};
-
-	/* call the constructor */
-	new(instance) T(std::forward<Args>(args)...);
-
-	return instance;
-}
-
-template<typename T>
-[[gnu::nonnull]]
-void
-DeleteVarSize(T *instance)
-{
-	/* call the destructor */
-	instance->T::~T();
-
-	/* free memory */
-	free(instance);
-}
-
+#ifdef __linux__
+	prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, (unsigned long)start, len,
+	      (unsigned long)name);
 #endif
+}

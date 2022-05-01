@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2021 Max Kellermann <max.kellermann@gmail.com>
+ * Copyright 2013-2022 Max Kellermann <max.kellermann@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
  */
 
 #include "HugeAllocator.hxx"
-#include "Compiler.h"
+#include "system/VmaName.hxx"
 
 #include <new>
 
@@ -44,7 +44,7 @@
 /**
  * Round up the parameter, make it page-aligned.
  */
-gcc_const
+[[gnu::const]]
 static size_t
 AlignToPageSize(size_t size) noexcept
 {
@@ -81,6 +81,12 @@ void
 HugeFree(void *p, size_t size) noexcept
 {
 	munmap(p, AlignToPageSize(size));
+}
+
+void
+HugeSetName(void *p, size_t size, const char *name) noexcept
+{
+	SetVmaName(p, size, name);
 }
 
 void

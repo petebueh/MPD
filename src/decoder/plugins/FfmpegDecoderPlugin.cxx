@@ -366,7 +366,8 @@ ffmpeg_sample_format(enum AVSampleFormat sample_fmt) noexcept
 }
 
 static void
-FfmpegParseMetaData(AVDictionary &dict, ReplayGainInfo &rg, MixRampInfo &mr)
+FfmpegParseMetaData(AVDictionary &dict,
+		    ReplayGainInfo &rg, MixRampInfo &mr) noexcept
 {
 	AVDictionaryEntry *i = nullptr;
 
@@ -382,25 +383,29 @@ FfmpegParseMetaData(AVDictionary &dict, ReplayGainInfo &rg, MixRampInfo &mr)
 
 static void
 FfmpegParseMetaData(const AVStream &stream,
-		    ReplayGainInfo &rg, MixRampInfo &mr)
+		    ReplayGainInfo &rg, MixRampInfo &mr) noexcept
 {
-	FfmpegParseMetaData(*stream.metadata, rg, mr);
+	if (stream.metadata != nullptr)
+		FfmpegParseMetaData(*stream.metadata, rg, mr);
 }
 
 static void
 FfmpegParseMetaData(const AVFormatContext &format_context, int audio_stream,
-		    ReplayGainInfo &rg, MixRampInfo &mr)
+		    ReplayGainInfo &rg, MixRampInfo &mr) noexcept
 {
 	assert(audio_stream >= 0);
 
-	FfmpegParseMetaData(*format_context.metadata, rg, mr);
+	if (format_context.metadata != nullptr)
+		FfmpegParseMetaData(*format_context.metadata, rg, mr);
+
 	FfmpegParseMetaData(*format_context.streams[audio_stream],
 				    rg, mr);
 }
 
 static void
 FfmpegParseMetaData(DecoderClient &client,
-		    const AVFormatContext &format_context, int audio_stream)
+		    const AVFormatContext &format_context,
+		    int audio_stream) noexcept
 {
 	ReplayGainInfo rg;
 	rg.Clear();
@@ -436,7 +441,7 @@ FfmpegScanMetadata(const AVFormatContext &format_context, int audio_stream,
 
 static void
 FfmpegScanTag(const AVFormatContext &format_context, int audio_stream,
-	      TagBuilder &tag)
+	      TagBuilder &tag) noexcept
 {
 	FullTagHandler h(tag);
 	FfmpegScanMetadata(format_context, audio_stream, h);
@@ -448,7 +453,7 @@ FfmpegScanTag(const AVFormatContext &format_context, int audio_stream,
  */
 static void
 FfmpegCheckTag(DecoderClient &client, InputStream *is,
-	       AVFormatContext &format_context, int audio_stream)
+	       AVFormatContext &format_context, int audio_stream) noexcept
 {
 	AVStream &stream = *format_context.streams[audio_stream];
 	if ((stream.event_flags & AVSTREAM_EVENT_FLAG_METADATA_UPDATED) == 0)
