@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2019 Max Kellermann <max.kellermann@gmail.com>
+ * Copyright 2022 Max Kellermann <max.kellermann@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,70 +27,23 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "GunzipReader.hxx"
-#include "Error.hxx"
+#pragma once
 
-GunzipReader::GunzipReader(Reader &_next)
-	:next(_next)
+#include <cstddef>
+#include <span>
+
+/**
+ * Cast a std::span<std::byte> to a std::span<T>, rounding down to the
+ * next multiple of T's size.
+ */
+template<typename T>
+constexpr std::span<T>
+FromBytesFloor(std::span<std::byte> other) noexcept
 {
-	z.next_in = nullptr;
-	z.avail_in = 0;
-	z.zalloc = Z_NULL;
-	z.zfree = Z_NULL;
-	z.opaque = Z_NULL;
+	static_assert(sizeof(T) > 0, "Empty base type");
 
-	int result = inflateInit2(&z, 16 + MAX_WBITS);
-	if (result != Z_OK)
-		throw ZlibError(result);
-}
-
-inline bool
-GunzipReader::FillBuffer()
-{
-	auto w = buffer.Write();
-	assert(!w.empty());
-
-	std::size_t nbytes = next.Read(w.data(), w.size());
-	if (nbytes == 0)
-		return false;
-
-	buffer.Append(nbytes);
-	return true;
-}
-
-std::size_t
-GunzipReader::Read(void *data, std::size_t size)
-{
-	if (eof)
-		return 0;
-
-	z.next_out = (Bytef *)data;
-	z.avail_out = size;
-
-	while (true) {
-		int flush = Z_NO_FLUSH;
-
-		auto r = buffer.Read();
-		if (r.empty()) {
-			if (FillBuffer())
-				r = buffer.Read();
-			else
-				flush = Z_FINISH;
-		}
-
-		z.next_in = r.data();
-		z.avail_in = r.size();
-
-		int result = inflate(&z, flush);
-		if (result == Z_STREAM_END) {
-			eof = true;
-			return size - z.avail_out;
-		} else if (result != Z_OK)
-			throw ZlibError(result);
-
-		buffer.Consume(r.size() - z.avail_in);
-
-		if (z.avail_out < size)
-			return size - z.avail_out;
-	}
+	return {
+		reinterpret_cast<T *>(other.data()),
+		other.size() / sizeof(T),
+	};
 }
