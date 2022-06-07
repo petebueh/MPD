@@ -29,8 +29,13 @@
 
 #pragma once
 
+#include <cassert>
 #include <cstddef>
 #include <span>
+#include <string_view>
+
+template<typename From, typename To>
+using CopyConst = std::conditional_t<std::is_const_v<From>, const To, To>;
 
 /**
  * Cast a std::span<std::byte> to a std::span<T>, rounding down to the
@@ -38,7 +43,7 @@
  */
 template<typename T>
 constexpr std::span<T>
-FromBytesFloor(std::span<std::byte> other) noexcept
+FromBytesFloor(std::span<CopyConst<T, std::byte>> other) noexcept
 {
 	static_assert(sizeof(T) > 0, "Empty base type");
 
@@ -46,4 +51,34 @@ FromBytesFloor(std::span<std::byte> other) noexcept
 		reinterpret_cast<T *>(other.data()),
 		other.size() / sizeof(T),
 	};
+}
+
+/**
+ * Like FromBytesFloor(), but assert that rounding is not necessary.
+ */
+template<typename T>
+constexpr std::span<T>
+FromBytesStrict(std::span<CopyConst<T, std::byte>> other) noexcept
+{
+	assert(other.size() % sizeof(T) == 0);
+
+	return FromBytesFloor<T>(other);
+}
+
+constexpr std::span<const char>
+ToSpan(std::string_view sv) noexcept
+{
+#if defined(__clang__) && __clang_major__ < 15
+	/* workaround for old clang/libc++ versions which can't cast
+	   std::string_view to std::span */
+	return {sv.data(), sv.size()};
+#else
+	return std::span{sv};
+#endif
+}
+
+inline std::span<const std::byte>
+AsBytes(std::string_view sv) noexcept
+{
+	return std::as_bytes(ToSpan(sv));
 }
