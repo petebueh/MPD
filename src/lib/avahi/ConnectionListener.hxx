@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2021 CM4all GmbH
+ * Copyright 2007-2022 CM4all GmbH
  * All rights reserved.
  *
  * author: Max Kellermann <mk@cm4all.com>
@@ -32,62 +32,30 @@
 
 #pragma once
 
-#include "Poll.hxx"
-#include "event/CoarseTimerEvent.hxx"
-
 #include <avahi-client/client.h>
-
-#include <forward_list>
-
-class EventLoop;
 
 namespace Avahi {
 
-class ErrorHandler;
-class ConnectionListener;
-
-class Client final {
-	ErrorHandler &error_handler;
-
-	CoarseTimerEvent reconnect_timer;
-
-	Poll poll;
-
-	AvahiClient *client = nullptr;
-
-	std::forward_list<ConnectionListener *> listeners;
-
+class ConnectionListener {
 public:
-	Client(EventLoop &event_loop, ErrorHandler &_error_handler) noexcept;
-	~Client() noexcept;
+	/**
+	 * The connection to the Avahi daemon has been established.
+	 *
+	 * Note that this may be called again after a collision
+	 * (AVAHI_CLIENT_S_COLLISION) or a host name change
+	 * (AVAHI_CLIENT_S_REGISTERING).
+	 */
+	virtual void OnAvahiConnect(AvahiClient *client) noexcept = 0;
+	virtual void OnAvahiDisconnect() noexcept = 0;
 
-	Client(const Client &) = delete;
-	Client &operator=(const Client &) = delete;
-
-	EventLoop &GetEventLoop() const noexcept {
-		return poll.GetEventLoop();
-	}
-
-	void Close() noexcept;
-
-	AvahiClient *GetClient() noexcept {
-		return client;
-	}
-
-	void AddListener(ConnectionListener &listener) noexcept {
-		listeners.push_front(&listener);
-	}
-
-	void RemoveListener(ConnectionListener &listener) noexcept {
-		listeners.remove(&listener);
-	}
-
-private:
-	void ClientCallback(AvahiClient *c, AvahiClientState state) noexcept;
-	static void ClientCallback(AvahiClient *c, AvahiClientState state,
-				   void *userdata) noexcept;
-
-	void OnReconnectTimer() noexcept;
+	/**
+	 * Something about the Avahi connection has changed, e.g. a
+	 * collision (AVAHI_CLIENT_S_COLLISION) or a host name change
+	 * (AVAHI_CLIENT_S_REGISTERING).  Services shall be
+	 * unpublished now, and will be re-published in the following
+	 * OnAvahiConnect() call.
+	 */
+	virtual void OnAvahiChanged() noexcept {}
 };
 
 } // namespace Avahi

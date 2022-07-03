@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2021 CM4all GmbH
+ * Copyright 2022 CM4all GmbH
  * All rights reserved.
  *
  * author: Max Kellermann <mk@cm4all.com>
@@ -32,19 +32,43 @@
 
 #pragma once
 
-#include <exception>
+#include <cassert>
+#include <cstddef>
 
-struct AvahiClient;
+template<bool enable> class OptionalCounter;
 
-namespace Avahi {
-
-class ErrorHandler {
+template<>
+class OptionalCounter<false>
+{
 public:
-	/**
-	 * @return true to keep retrying, false if the failed object
-	 * has been disposed
-	 */
-	virtual bool OnAvahiError(std::exception_ptr e) noexcept = 0;
+	constexpr void reset() noexcept {}
+	constexpr auto &operator++() noexcept { return *this; }
+	constexpr auto &operator--() noexcept { return *this; }
 };
 
-} // namespace Avahi
+template<>
+class OptionalCounter<true>
+{
+	std::size_t value = 0;
+
+public:
+	constexpr operator std::size_t() const noexcept {
+		return value;
+	}
+
+	constexpr void reset() noexcept {
+		value = 0;
+	}
+
+	constexpr auto &operator++() noexcept {
+		++value;
+		return *this;
+	}
+
+	constexpr auto &operator--() noexcept {
+		assert(value > 0);
+
+		--value;
+		return *this;
+	}
+};
