@@ -137,19 +137,15 @@ public:
 	 */
 	gcc_pure
 	int GetVolume() const noexcept;
-	
-	gcc_pure
-	int GetRgScale() const noexcept;
 
 	/**
 	 * Sets the volume on all available mixers.
 	 *
+	 * Throws on error.
+	 *
 	 * @param volume the volume (range 0..100)
-	 * @return true on success, false on failure
 	 */
-	bool SetVolume(unsigned volume) noexcept;
-	
-	bool SetRg(unsigned rg) noexcept;
+	void SetVolume(unsigned volume);
 
 	/**
 	 * Similar to GetVolume(), but gets the volume only for

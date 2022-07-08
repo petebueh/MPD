@@ -25,7 +25,6 @@
 #include "pcm/Volume.hxx"
 #include "util/Domain.hxx"
 #include "Log.hxx"
-#include "Idle.hxx"
 
 #include <cassert>
 
@@ -74,120 +73,77 @@ MultipleOutputs::GetVolume() const noexcept
 	return total / ok;
 }
 
-gcc_pure
-static int
-output_mixer_get_rg(const AudioOutputControl &ao) noexcept
-{
-	if (!ao.IsEnabled())
-		return -1;
+enum class SetVolumeResult {
+	NO_MIXER,
+	DISABLED,
+	ERROR,
+	OK,
+};
 
-	auto *mixer = ao.GetMixer();
-	if (mixer == nullptr)
-		return -1;
-
-	try {
-		return mixer_get_rg(mixer);
-	} catch (...) {
-		FmtError(mixer_domain,
-			 "Failed to read mixer for '{}': {}",
-			 ao.GetName(), std::current_exception());
-		return -1;
-	}
-}
-
-int
-MultipleOutputs::GetRgScale() const noexcept
-{
-	unsigned okrg = 0;
-	int totalrg = 0;
-
-	for (const auto &ao : outputs) {
-		int rg = output_mixer_get_rg(*ao);
-		if (rg >= 0) {
-			totalrg += rg;
-			++okrg;
-		}
-	}
-
-	if (okrg == 0)
-		return -1;
-
-	return totalrg / okrg;
-}
-
-static bool
-output_mixer_set_volume(AudioOutputControl &ao, unsigned volume) noexcept
+static SetVolumeResult
+output_mixer_set_volume(AudioOutputControl &ao, unsigned volume)
 {
 	assert(volume <= 100);
 
 	auto *mixer = ao.GetMixer();
 	if (mixer == nullptr)
-		return false;
+		return SetVolumeResult::NO_MIXER;
 
 	/* software mixers are always updated, even if they are
 	   disabled */
-	if (!ao.IsEnabled() && !mixer->IsPlugin(software_mixer_plugin))
-		return false;
+	if (!mixer->IsPlugin(software_mixer_plugin) &&
+	    /* "global" mixers can be used even if the output hasn't
+	       been used yet */
+	    !(mixer->IsGlobal() ? ao.IsEnabled() : ao.IsReallyEnabled()))
+		return SetVolumeResult::DISABLED;
 
 	try {
 		mixer_set_volume(mixer, volume);
-		return true;
+		return SetVolumeResult::OK;
 	} catch (...) {
 		FmtError(mixer_domain,
 			 "Failed to set mixer for '{}': {}",
 			 ao.GetName(), std::current_exception());
-		return false;
+		std::throw_with_nested(std::runtime_error(fmt::format("Failed to set mixer for '{}'",
+								      ao.GetName())));
 	}
 }
 
-bool
-MultipleOutputs::SetVolume(unsigned volume) noexcept
+void
+MultipleOutputs::SetVolume(unsigned volume)
 {
 	assert(volume <= 100);
 
-	bool success = false;
-	for (const auto &ao : outputs)
-		success = output_mixer_set_volume(*ao, volume)
-			|| success;
+	SetVolumeResult result = SetVolumeResult::NO_MIXER;
+	std::exception_ptr error;
 
-	return success;
-}
-
-static bool
-output_mixer_set_rg(AudioOutputControl &ao, unsigned rg) noexcept
-{
-	assert(rg <= 999);
-
-	if (!ao.IsEnabled())
-		return false;
-
-	auto *mixer = ao.GetMixer();
-	if (mixer == nullptr)
-		return false;
-
-	try {
-		mixer_set_rg(mixer, rg);
-		idle_add(IDLE_MIXER);
-		return true;
-	} catch (...) {
-		FmtError(mixer_domain,
-			 "Failed to set replay gain for '{}': {}",
-			 ao.GetName(), std::current_exception());
-		return false;
+	for (const auto &ao : outputs) {
+		try {
+			auto r = output_mixer_set_volume(*ao, volume);
+			if (r > result)
+				result = r;
+		} catch (...) {
+			/* remember the first error */
+			if (!error) {
+				error = std::current_exception();
+				result = SetVolumeResult::ERROR;
+			}
+		}
 	}
-}
 
-bool
-MultipleOutputs::SetRg(unsigned rg) noexcept
-{
-	assert(rg <= 999);
+	switch (result) {
+	case SetVolumeResult::NO_MIXER:
+		throw std::runtime_error{"No mixer"};
 
-	bool success = false;
-	for (const auto &ao : outputs)
-		success = output_mixer_set_rg(*ao, rg)
-			|| success;
+	case SetVolumeResult::DISABLED:
+		throw std::runtime_error{"All outputs are disabled"};
 
-	return success;
+	case SetVolumeResult::ERROR:
+		std::rethrow_exception(error);
+
+	case SetVolumeResult::OK:
+		break;
+	}
 }
 
 static int

@@ -30,11 +30,10 @@ InvalidateHardwareVolume() noexcept;
 int
 volume_level_get(const MultipleOutputs &outputs) noexcept;
 
-[[gnu::pure]]
-int
-rg_level_get(const MultipleOutputs &outputs) noexcept;
-
-bool
+/**
+ * Throws on error.
+ */
+void
 volume_level_change(MultipleOutputs &outputs, unsigned volume);
 
 bool

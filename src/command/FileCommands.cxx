@@ -27,7 +27,6 @@
 #include "util/OffsetPointer.hxx"
 #include "util/ScopeExit.hxx"
 #include "util/StringCompare.hxx"
-#include "util/StringView.hxx"
 #include "util/UriExtract.hxx"
 #include "tag/Handler.hxx"
 #include "tag/Generic.hxx"
@@ -139,7 +138,7 @@ public:
 CommandResult
 handle_read_comments(Client &client, Request args, Response &r)
 {
-	assert(args.size == 1);
+	assert(args.size() == 1);
 
 	const char *const uri = args.front();
 
@@ -289,7 +288,7 @@ read_db_art(Client &client, Response &r, const char *uri, const uint64_t offset)
 CommandResult
 handle_album_art(Client &client, Request args, Response &r)
 {
-	assert(args.size == 2);
+	assert(args.size() == 2);
 
 	const char *uri = args.front();
 	size_t offset = args.ParseUnsigned(1);
@@ -369,7 +368,7 @@ public:
 CommandResult
 handle_read_picture(Client &client, Request args, Response &r)
 {
-	assert(args.size == 2);
+	assert(args.size() == 2);
 
 	const char *const uri = args.front();
 	const size_t offset = args.ParseUnsigned(1);
