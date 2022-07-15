@@ -25,6 +25,7 @@
 #include "pcm/Volume.hxx"
 #include "util/Domain.hxx"
 #include "Log.hxx"
+#include "Idle.hxx"
 
 #include <cassert>
 
@@ -71,6 +72,47 @@ MultipleOutputs::GetVolume() const noexcept
 		return -1;
 
 	return total / ok;
+}
+
+gcc_pure
+static int
+output_mixer_get_rg(const AudioOutputControl &ao) noexcept
+{
+	if (!ao.IsEnabled())
+		return -1;
+
+	auto *mixer = ao.GetMixer();
+	if (mixer == nullptr)
+		return -1;
+
+	try {
+		return mixer_get_rg(mixer);
+	} catch (...) {
+		FmtError(mixer_domain,
+			 "Failed to read mixer for '{}': {}",
+			 ao.GetName(), std::current_exception());
+		return -1;
+	}
+}
+
+int
+MultipleOutputs::GetRgScale() const noexcept
+{
+	unsigned okrg = 0;
+	int totalrg = 0;
+
+	for (const auto &ao : outputs) {
+		int rg = output_mixer_get_rg(*ao);
+		if (rg >= 0) {
+			totalrg += rg;
+			++okrg;
+		}
+	}
+
+	if (okrg == 0)
+		return -1;
+
+	return totalrg / okrg;
 }
 
 enum class SetVolumeResult {
@@ -144,6 +186,76 @@ MultipleOutputs::SetVolume(unsigned volume)
 	case SetVolumeResult::OK:
 		break;
 	}
+}
+
+enum class SetRgResult {
+	NO_MIXER,
+	DISABLED,
+	ERROR,
+	OK,
+};
+
+static SetRgResult
+output_mixer_set_rg(AudioOutputControl &ao, unsigned rg)
+{
+	assert(rg <= 999);
+
+	if (!ao.IsEnabled())
+		return SetRgResult::NO_MIXER;
+
+	auto *mixer = ao.GetMixer();
+	if (mixer == nullptr)
+		return SetRgResult::DISABLED;
+
+	try {
+		mixer_set_rg(mixer, rg);
+		idle_add(IDLE_MIXER);
+		return SetRgResult::OK;
+	} catch (...) {
+		FmtError(mixer_domain,
+			 "Failed to set replay gain for '{}': {}",
+			 ao.GetName(), std::current_exception());
+			std::throw_with_nested(std::runtime_error(fmt::format("Failed to set mixer for '{}'",
+								      ao.GetName())));
+	}
+}
+
+void
+MultipleOutputs::SetRg(unsigned rg)
+{
+	assert(rg <= 999);
+	
+    SetRgResult result = SetRgResult::NO_MIXER;
+	std::exception_ptr error;
+
+	for (const auto &ao : outputs) {
+		try {
+			auto r = output_mixer_set_rg(*ao, rg);
+			if (r > result)
+				result = r;
+		} catch (...) {
+			/* remember the first error */
+			if (!error) {
+				error = std::current_exception();
+				result = SetRgResult::ERROR;
+			}
+		}
+	}
+
+	switch (result) {
+	case SetRgResult::NO_MIXER:
+		throw std::runtime_error{"No mixer"};
+
+	case SetRgResult::DISABLED:
+		throw std::runtime_error{"All outputs are disabled"};
+
+	case SetRgResult::ERROR:
+		std::rethrow_exception(error);
+
+	case SetRgResult::OK:
+		break;
+	}
+	
 }
 
 static int

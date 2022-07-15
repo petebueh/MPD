@@ -129,7 +129,7 @@ mixer_get_rg(Mixer *mixer)
 
 	assert(mixer != nullptr);
 
-	if (mixer->plugin.global && !mixer->failed)
+	if (mixer->plugin.global && !mixer->failure)
 		mixer_open(mixer);
 
 	const std::scoped_lock<Mutex> protect(mixer->mutex);
@@ -138,7 +138,8 @@ mixer_get_rg(Mixer *mixer)
 		try {
 			rg = mixer->GetRgScale();
 		} catch (...) {
-			mixer_failed(mixer);
+			mixer_close_internal(mixer);
+			mixer->failure = std::current_exception();
 			throw;
 		}
 	} else
@@ -169,7 +170,7 @@ mixer_set_rg(Mixer *mixer, unsigned rg)
 	assert(mixer != nullptr);
 	assert(rg <= 999);
 
-	if (mixer->plugin.global && !mixer->failed)
+	if (mixer->plugin.global && !mixer->failure)
 		mixer_open(mixer);
 
 	const std::scoped_lock<Mutex> protect(mixer->mutex);
