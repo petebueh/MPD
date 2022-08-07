@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2021 The Music Player Daemon Project
+ * Copyright 2003-2022 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,9 +21,12 @@
 #define __STDC_CONSTANT_MACROS
 
 #include "FfmpegIo.hxx"
-#include "libavutil/mem.h"
 #include "../DecoderAPI.hxx"
 #include "input/InputStream.hxx"
+
+extern "C" {
+#include <libavutil/mem.h>
+}
 
 AvioStream::~AvioStream()
 {

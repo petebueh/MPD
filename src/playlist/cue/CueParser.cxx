@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2021 The Music Player Daemon Project
+ * Copyright 2003-2022 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -43,7 +43,7 @@ cue_next_word(std::string_view &src) noexcept
 static std::string_view
 cue_next_quoted(std::string_view &src) noexcept
 {
-	assert(src.data()[-1] == '"');
+	assert(src[-1] == '"');
 
 	auto end = src.find('"');
 	if (end == src.npos)

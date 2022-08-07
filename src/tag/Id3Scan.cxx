@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2021 The Music Player Daemon Project
+ * Copyright 2003-2022 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -53,6 +53,10 @@
 
 #ifndef ID3_FRAME_ALBUM_ARTIST
 #define ID3_FRAME_ALBUM_ARTIST "TPE2"
+#endif
+
+#ifndef ID3_FRAME_TITLE_SORT
+#define ID3_FRAME_TITLE_SORT "TSOT"
 #endif
 
 #ifndef ID3_FRAME_ORIGINAL_RELEASE_DATE
@@ -352,6 +356,7 @@ scan_id3_tag(const struct id3_tag *tag, TagHandler &handler) noexcept
 	tag_id3_import_text(tag, ID3_FRAME_LABEL, TAG_LABEL,
 			    handler);
 	tag_id3_import_text(tag, ID3_FRAME_MOOD, TAG_MOOD, handler);
+	tag_id3_import_text(tag, ID3_FRAME_TITLE_SORT, TAG_TITLE_SORT, handler);
 
 	tag_id3_import_musicbrainz(tag, handler);
 	tag_id3_import_ufid(tag, handler);

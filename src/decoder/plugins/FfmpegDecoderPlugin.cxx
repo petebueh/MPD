@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2021 The Music Player Daemon Project
+ * Copyright 2003-2022 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -205,7 +205,7 @@ PtsToPcmFrame(uint64_t pts, const AVStream &stream,
 }
 
 /**
- * Invoke DecoderClient::SubmitData() with the contents of an
+ * Invoke DecoderClient::SubmitAudio() with the contents of an
  * #AVFrame.
  */
 static DecoderCommand
@@ -227,9 +227,8 @@ FfmpegSendFrame(DecoderClient &client, InputStream *is,
 		skip_bytes = 0;
 	}
 
-	return client.SubmitData(is,
-				 output_buffer.data(), output_buffer.size(),
-				 codec_context.bit_rate / 1000);
+	return client.SubmitAudio(is, output_buffer,
+				  codec_context.bit_rate / 1000);
 }
 
 static DecoderCommand
@@ -521,9 +520,15 @@ FfmpegDecode(DecoderClient &client, InputStream *input,
 		return;
 	}
 
+#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(57, 25, 100)
+	const unsigned channels = codec_context->ch_layout.nb_channels;
+#else
+	const unsigned channels = codec_context->channels;
+#endif
+
 	const auto audio_format = CheckAudioFormat(codec_context->sample_rate,
 						   sample_format,
-						   codec_context->channels);
+						   channels);
 
 	const SignedSongTime total_time =
 		av_stream.duration != (int64_t)AV_NOPTS_VALUE
@@ -633,10 +638,17 @@ FfmpegScanStream(AVFormatContext &format_context, TagHandler &handler)
 						  AV_TIME_BASE_Q));
 
 	const auto &codec_params = *stream.codecpar;
+
+#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(57, 25, 100)
+	const unsigned channels = codec_params.ch_layout.nb_channels;
+#else
+	const unsigned channels = codec_params.channels;
+#endif
+
 	try {
 		handler.OnAudioFormat(CheckAudioFormat(codec_params.sample_rate,
 						       ffmpeg_sample_format(AVSampleFormat(codec_params.format)),
-						       codec_params.channels));
+						       channels));
 	} catch (...) {
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2021 The Music Player Daemon Project
+ * Copyright 2003-2022 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -106,7 +106,7 @@ embcue_playlist_open_uri(const char *uri,
 
 	playlist->cuesheet = std::move(extract_cuesheet.cuesheet);
 
-	playlist->next = &playlist->cuesheet[0];
+	playlist->next = playlist->cuesheet.data();
 	playlist->parser = std::make_unique<CueParser>();
 
 	return playlist;

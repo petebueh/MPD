@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2021 The Music Player Daemon Project
+ * Copyright 2003-2022 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -37,7 +37,11 @@ InterleaveFrame(const AVFrame &frame, FfmpegBuffer &buffer)
 	assert(frame.nb_samples > 0);
 
 	const auto format = AVSampleFormat(frame.format);
+#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(57, 25, 100)
+	const unsigned channels = frame.ch_layout.nb_channels;
+#else
 	const unsigned channels = frame.channels;
+#endif
 	const std::size_t n_frames = frame.nb_samples;
 
 	int plane_size;

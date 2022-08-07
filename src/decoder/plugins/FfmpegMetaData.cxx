@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2021 The Music Player Daemon Project
+ * Copyright 2003-2022 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -40,11 +40,13 @@ static constexpr struct tag_table ffmpeg_tags[] = {
 	/* from libavformat/id3v2.c */
 	{ "album-sort", TAG_ALBUM_SORT },
 	{ "artist-sort", TAG_ARTIST_SORT },
+	{ "title-sort", TAG_TITLE_SORT},
 
 	/* from libavformat/mov.c */
 	{ "sort_album_artist", TAG_ALBUM_ARTIST_SORT },
 	{ "sort_album", TAG_ALBUM_SORT },
 	{ "sort_artist", TAG_ARTIST_SORT },
+	{ "sort_name", TAG_TITLE_SORT },
 
 	/* sentinel */
 	{ nullptr, TAG_NUM_OF_ITEM_TYPES }
