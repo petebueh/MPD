@@ -137,7 +137,7 @@ public:
 	[[gnu::pure]]
 	int GetVolume() const noexcept;
 	
-	gcc_pure
+	[[gnu::pure]]
 	int GetRgScale() const noexcept;
 
 	/**
