@@ -323,7 +323,7 @@ handle_getrg(Client &client, Request, Response &r)
 {
 	auto &partition = client.GetPartition();
 
-	const auto rg = rg_level_get(partition.outputs);
+	const auto rg = partition.mixer_memento.GetRgScale(partition.outputs);
 	if (rg >= 0)
 		r.Fmt(FMT_STRING("rg: {}\n"), rg);
 

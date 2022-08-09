@@ -35,6 +35,8 @@ class MixerMemento {
 
 	/** the age of #last_hardware_volume */
 	PeriodClock hardware_volume_clock;
+	
+	int last_hardware_rg = -1;
 
 public:
 	/**
@@ -46,6 +48,9 @@ public:
 
 	[[gnu::pure]]
 	int GetVolume(const MultipleOutputs &outputs) noexcept;
+	
+	[[gnu::pure]]
+	int GetRgScale(const MultipleOutputs &outputs) noexcept;
 
 	/**
 	 * Throws on error.

@@ -43,6 +43,13 @@ MixerMemento::GetVolume(const MultipleOutputs &outputs) noexcept
 	return last_hardware_volume;
 }
 
+int
+MixerMemento::GetRgScale(const MultipleOutputs &outputs) noexcept
+{
+	last_hardware_rg = outputs.GetRgScale();
+	return last_hardware_rg;
+}
+
 inline bool
 MixerMemento::SetSoftwareVolume(MultipleOutputs &outputs, unsigned volume)
 {
