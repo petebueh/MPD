@@ -105,8 +105,8 @@ SoftwareMixer::SetRg(unsigned new_rg)
 
 	rg = new_rg;
 
-	if (filter != nullptr)
-		volume_filter_set(filter, PercentVolumeToSoftwareVolume(new_rg));
+	/* if (filter != nullptr)
+		volume_filter_set(filter, PercentVolumeToSoftwareVolume(new_rg)); */
 }
 
 const MixerPlugin software_mixer_plugin = {
