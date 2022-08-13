@@ -44,9 +44,9 @@ MixerMemento::GetVolume(const MultipleOutputs &outputs) noexcept
 }
 
 int
-MixerMemento::GetRgScale(const MultipleOutputs &outputs) noexcept
+MixerMemento::GetReplayGain(const MultipleOutputs &outputs) noexcept
 {
-	last_hardware_rg = outputs.GetRgScale();
+	last_hardware_rg = outputs.GetReplayGain();
 	return last_hardware_rg;
 }
 

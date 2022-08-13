@@ -50,7 +50,7 @@ public:
 	int GetVolume(const MultipleOutputs &outputs) noexcept;
 	
 	[[gnu::pure]]
-	int GetRgScale(const MultipleOutputs &outputs) noexcept;
+	int GetReplayGain(const MultipleOutputs &outputs) noexcept;
 
 	/**
 	 * Throws on error.

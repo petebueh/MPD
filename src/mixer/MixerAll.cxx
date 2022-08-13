@@ -96,7 +96,7 @@ output_mixer_get_rg(const AudioOutputControl &ao) noexcept
 }
 
 int
-MultipleOutputs::GetRgScale() const noexcept
+MultipleOutputs::GetReplayGain() const noexcept
 {
 	unsigned okrg = 0;
 	int totalrg = 0;
@@ -188,29 +188,29 @@ MultipleOutputs::SetVolume(unsigned volume)
 	}
 }
 
-enum class SetRgResult {
+enum class SetReplayGainResult {
 	NO_MIXER,
 	DISABLED,
 	ERROR,
 	OK,
 };
 
-static SetRgResult
+static SetReplayGainResult
 output_mixer_set_rg(AudioOutputControl &ao, unsigned rg)
 {
 	assert(rg <= 999);
 
 	if (!ao.IsEnabled())
-		return SetRgResult::NO_MIXER;
+		return SetReplayGainResult::NO_MIXER;
 
 	auto *mixer = ao.GetMixer();
 	if (mixer == nullptr)
-		return SetRgResult::DISABLED;
+		return SetReplayGainResult::DISABLED;
 
 	try {
 		mixer_set_rg(mixer, rg);
 		idle_add(IDLE_MIXER);
-		return SetRgResult::OK;
+		return SetReplayGainResult::OK;
 	} catch (...) {
 		FmtError(mixer_domain,
 			 "Failed to set replay gain for '{}': {}",
@@ -221,11 +221,11 @@ output_mixer_set_rg(AudioOutputControl &ao, unsigned rg)
 }
 
 void
-MultipleOutputs::SetRg(unsigned rg)
+MultipleOutputs::SetReplayGain(unsigned rg)
 {
 	assert(rg <= 999);
 	
-    SetRgResult result = SetRgResult::NO_MIXER;
+    SetReplayGainResult result = SetReplayGainResult::NO_MIXER;
 	std::exception_ptr error;
 
 	for (const auto &ao : outputs) {
@@ -237,22 +237,22 @@ MultipleOutputs::SetRg(unsigned rg)
 			/* remember the first error */
 			if (!error) {
 				error = std::current_exception();
-				result = SetRgResult::ERROR;
+				result = SetReplayGainResult::ERROR;
 			}
 		}
 	}
 
 	switch (result) {
-	case SetRgResult::NO_MIXER:
+	case SetReplayGainResult::NO_MIXER:
 		throw std::runtime_error{"No mixer"};
 
-	case SetRgResult::DISABLED:
+	case SetReplayGainResult::DISABLED:
 		throw std::runtime_error{"All outputs are disabled"};
 
-	case SetRgResult::ERROR:
+	case SetReplayGainResult::ERROR:
 		std::rethrow_exception(error);
 
-	case SetRgResult::OK:
+	case SetReplayGainResult::OK:
 		break;
 	}
 	

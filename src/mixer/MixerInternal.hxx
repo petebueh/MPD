@@ -91,7 +91,7 @@ public:
 	 */
 	virtual int GetVolume() = 0;
 	
-	virtual int GetRgScale() = 0;
+	virtual int GetReplayGain() = 0;
 
 	/**
 	 * Sets the volume.
@@ -102,7 +102,7 @@ public:
 	 */
 	virtual void SetVolume(unsigned volume) = 0;
 	
-	virtual void SetRg(unsigned rg) = 0;
+	virtual void SetReplayGain(unsigned rg) = 0;
 
 };
 

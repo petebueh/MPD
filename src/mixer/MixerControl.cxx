@@ -136,7 +136,7 @@ mixer_get_rg(Mixer *mixer)
 
 	if (mixer->open) {
 		try {
-			rg = mixer->GetRgScale();
+			rg = mixer->GetReplayGain();
 		} catch (...) {
 			mixer_close_internal(mixer);
 			mixer->failure = std::current_exception();
@@ -176,5 +176,5 @@ mixer_set_rg(Mixer *mixer, unsigned rg)
 	const std::scoped_lock<Mutex> protect(mixer->mutex);
 
 	if (mixer->open)
-		mixer->SetRg(rg);
+		mixer->SetReplayGain(rg);
 }

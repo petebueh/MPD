@@ -44,14 +44,14 @@ public:
 		return volume;
 	}
 	
-	int GetRgScale() override {
+	int GetReplayGain() override {
 		return rg;
 	}
 
 	void SetVolume(unsigned _volume) override {
 		volume = _volume;
 	}
-	void SetRg(unsigned _rg) override {
+	void SetReplayGain(unsigned _rg) override {
 		rg = _rg;
 	}
 };

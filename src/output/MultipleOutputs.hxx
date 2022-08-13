@@ -138,7 +138,7 @@ public:
 	int GetVolume() const noexcept;
 	
 	[[gnu::pure]]
-	int GetRgScale() const noexcept;
+	int GetReplayGain() const noexcept;
 
 	/**
 	 * Sets the volume on all available mixers.
@@ -150,7 +150,7 @@ public:
 	 */
 	void SetVolume(unsigned volume);
 	
-	void SetRg(unsigned rg);
+	void SetReplayGain(unsigned rg);
 
 	/**
 	 * Similar to GetVolume(), but gets the volume only for

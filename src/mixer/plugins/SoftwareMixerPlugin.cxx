@@ -53,13 +53,13 @@ public:
 		return volume;
 	}
 	
-	int GetRgScale() override {
+	int GetReplayGain() override {
 		return rg;
 	}
 
 	void SetVolume(unsigned volume) override;
 	
-	void SetRg(unsigned rg) override;
+	void SetReplayGain(unsigned rg) override;
 };
 
 static Mixer *
@@ -99,7 +99,7 @@ SoftwareMixer::SetVolume(unsigned new_volume)
 }
 
 void
-SoftwareMixer::SetRg(unsigned new_rg)
+SoftwareMixer::SetReplayGain(unsigned new_rg)
 {
 	assert(new_rg <= 999);
 

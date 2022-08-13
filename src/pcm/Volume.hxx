@@ -88,7 +88,7 @@ public:
 		return volume;
 	}
 
-	unsigned GetRgScale() const noexcept {
+	unsigned GetReplayGain() const noexcept {
 		return rg;
 	}
 
