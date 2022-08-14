@@ -103,7 +103,6 @@ public:
 	virtual void SetVolume(unsigned volume) = 0;
 	
 	virtual void SetReplayGain(unsigned rg) = 0;
-
 };
 
 #endif
