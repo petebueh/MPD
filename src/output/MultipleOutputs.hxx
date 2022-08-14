@@ -146,7 +146,6 @@ public:
 	 * Throws on error.
 	 *
 	 * @param volume the volume (range 0..100)
-	 * @return true on success, false on failure
 	 */
 	void SetVolume(unsigned volume);
 	
