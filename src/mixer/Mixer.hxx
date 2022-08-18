@@ -89,11 +89,15 @@ public:
 	 * Throws on error.
 	 */
 	int LockGetVolume();
+	
+	int LockGetVolume();
 
 	/**
 	 * Throws on error.
 	 */
 	void LockSetVolume(unsigned volume);
+	
+	void LockSetVolume(unsigned rg);
 
 private:
 	void _Open();
