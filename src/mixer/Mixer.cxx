@@ -128,7 +128,7 @@ Mixer::LockGetReplayGain()
 }
 
 void
-Mixer::LockSetReplayGain(unsigned volume)
+Mixer::LockSetReplayGain(unsigned rg)
 {
 	assert(rg <= 999);
 
