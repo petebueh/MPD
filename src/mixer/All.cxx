@@ -26,7 +26,6 @@
 #include "pcm/Volume.hxx"
 #include "util/Domain.hxx"
 #include "Log.hxx"
-#include "Idle.hxx"
 
 #include <cassert>
 
@@ -210,7 +209,6 @@ output_mixer_set_rg(AudioOutputControl &ao, unsigned rg)
 
 	try {
 		mixer->LockSetReplayGain(rg);
-		idle_add(IDLE_MIXER);
 		return SetReplayGainResult::OK;
 	} catch (...) {
 		FmtError(mixer_domain,

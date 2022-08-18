@@ -90,14 +90,14 @@ public:
 	 */
 	int LockGetVolume();
 	
-	int LockGetVolume();
+	int LockGetReplayGain();
 
 	/**
 	 * Throws on error.
 	 */
 	void LockSetVolume(unsigned volume);
 	
-	void LockSetVolume(unsigned rg);
+	void LockSetReplayGain(unsigned rg);
 
 private:
 	void _Open();
