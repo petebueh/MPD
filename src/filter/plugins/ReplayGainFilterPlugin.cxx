@@ -170,7 +170,7 @@ ReplayGainFilter::Update()
 			_rg = 999;
 
 		try {
-			mixer->LockSetVolume(_rg);
+			mixer->LockSetReplayGain(_rg);
 
 			/* invoke the mixer's listener manually, just
 			   in case the mixer implementation didn't do
