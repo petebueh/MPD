@@ -87,7 +87,7 @@ output_mixer_get_rg(const AudioOutputControl &ao) noexcept
 		return -1;
 
 	try {
-		return mixer_get_rg(mixer);
+		return mixer->LockGetReplayGain();
 	} catch (...) {
 		FmtError(mixer_domain,
 			 "Failed to read mixer for '{}': {}",
@@ -209,7 +209,7 @@ output_mixer_set_rg(AudioOutputControl &ao, unsigned rg)
 		return SetReplayGainResult::DISABLED;
 
 	try {
-		mixer_set_rg(mixer, rg);
+		mixer->LockSetReplayGain(rg);
 		idle_add(IDLE_MIXER);
 		return SetReplayGainResult::OK;
 	} catch (...) {
