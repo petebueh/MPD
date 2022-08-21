@@ -59,6 +59,8 @@ public:
 	 */
 	void SetVolume(MultipleOutputs &outputs, unsigned volume);
 
+	void SetReplayGain(MultipleOutputs &outputs, unsigned rg);
+
 	bool LoadSoftwareVolumeState(const char *line, MultipleOutputs &outputs);
 
 	void SaveSoftwareVolumeState(BufferedOutputStream &os) const;

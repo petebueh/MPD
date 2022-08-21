@@ -70,6 +70,15 @@ MixerMemento::SetHardwareVolume(MultipleOutputs &outputs, unsigned volume)
 	outputs.SetVolume(volume);
 }
 
+inline void
+MixerMemento::SetReplayGain(MultipleOutputs &outputs, unsigned rg)
+{
+	/* reset the cache */
+	last_hardware_rg = -1;
+
+	outputs.SetReplayGain(rg);
+}
+
 void
 MixerMemento::SetVolume(MultipleOutputs &outputs, unsigned volume)
 {
