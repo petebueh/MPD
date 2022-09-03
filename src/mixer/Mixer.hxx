@@ -132,7 +132,7 @@ protected:
 	 */
 	virtual int GetVolume() = 0;
 	
-	virtual int GetReplayGain() = 0;
+	virtual int GetReplayGain() { return 0; }
 
 	/**
 	 * Sets the volume.
@@ -145,5 +145,5 @@ protected:
 	 */
 	virtual void SetVolume(unsigned volume) = 0;
 	
-	virtual void SetReplayGain(unsigned rg) = 0;
+	virtual void SetReplayGain(unsigned rg) { (void)rg; }
 };

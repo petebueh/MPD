@@ -25,6 +25,7 @@
 #include "mixer/Control.hxx"
 #include "mixer/Mixer.hxx"
 #include "mixer/Listener.hxx"
+#include "mixer/plugins/NullMixerPlugin.hxx"
 #include "pcm/AudioFormat.hxx"
 #include "pcm/Volume.hxx"
 #include "util/Domain.hxx"
@@ -162,21 +163,34 @@ ReplayGainFilter::Update()
 		volume = pcm_float_to_volume(scale);
 	}
 
-	if (mixer != nullptr) {
-		/* update the hardware mixer volume */
-
+	if (mixer != nullptr && mixer->IsPlugin(null_mixer_plugin)) {
+		/* update the null mixer replay gain */
 		unsigned _rg = (volume * base) / PCM_VOLUME_1;
 		if (_rg > 999)
 			_rg = 999;
 
 		try {
 			mixer->LockSetReplayGain(_rg);
+			mixer->listener.OnMixerVolumeChanged(*mixer, _rg);
+		} catch (...) {
+			LogError(std::current_exception(),
+				 "Failed to update null mixer replay gain");
+		}
+	} else if (mixer != nullptr && !mixer->IsPlugin(null_mixer_plugin)) {
+		/* update the hardware mixer volume, except for null mixer */
+
+		unsigned _volume = (volume * base) / PCM_VOLUME_1;
+		if (_volume > 100)
+			_volume = 100;
+
+		try {
+			mixer->LockSetVolume(_volume);
 
 			/* invoke the mixer's listener manually, just
 			   in case the mixer implementation didn't do
 			   that already (this depends on the
 			   implementation) */
-			mixer->listener.OnMixerVolumeChanged(*mixer, _rg);
+			mixer->listener.OnMixerVolumeChanged(*mixer, _volume);
 		} catch (...) {
 			LogError(std::current_exception(),
 				 "Failed to update hardware mixer");
