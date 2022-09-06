@@ -82,7 +82,7 @@ output_mixer_get_rg(const AudioOutputControl &ao) noexcept
 		return -1;
 
 	auto *mixer = ao.GetMixer();
-	if (mixer == nullptr)
+	if (!mixer->IsPlugin(null_mixer_plugin))
 		return -1;
 
 	try {
@@ -204,7 +204,7 @@ output_mixer_set_rg(AudioOutputControl &ao, unsigned rg)
 		return SetReplayGainResult::NO_MIXER;
 
 	auto *mixer = ao.GetMixer();
-	if (mixer == nullptr)
+	if (!mixer->IsPlugin(null_mixer_plugin))
 		return SetReplayGainResult::DISABLED;
 
 	try {
