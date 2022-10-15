@@ -185,7 +185,7 @@ static constexpr struct command commands[] = {
 	  handle_replay_gain_status },
 	{ "rescan", PERMISSION_CONTROL, 0, 1, handle_rescan },
 	{ "rm", PERMISSION_CONTROL, 1, 1, handle_rm },
-	{ "save", PERMISSION_CONTROL, 1, 1, handle_save },
+	{ "save", PERMISSION_CONTROL, 1, 2, handle_save },
 #ifdef ENABLE_DATABASE
 	{ "search", PERMISSION_READ, 1, -1, handle_search },
 	{ "searchadd", PERMISSION_ADD, 1, -1, handle_searchadd },
@@ -233,6 +233,12 @@ command_available([[maybe_unused]] const Partition &partition,
 #ifdef ENABLE_NEIGHBOR_PLUGINS
 	if (StringIsEqual(cmd->cmd, "listneighbors"))
 		return neighbor_commands_available(partition.instance);
+#endif
+
+#ifdef ENABLE_DATABASE
+	if (StringIsEqual(cmd->cmd, "mount") ||
+		StringIsEqual(cmd->cmd, "unmount"))
+		return mount_commands_available(partition.instance);
 #endif
 
 	if (StringIsEqual(cmd->cmd, "save") ||
