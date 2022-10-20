@@ -98,21 +98,21 @@ output_mixer_get_rg(const AudioOutputControl &ao) noexcept
 int
 MultipleOutputs::GetReplayGain() const noexcept
 {
-	unsigned okrg = 0;
-	int totalrg = 0;
+	unsigned ok = 0;
+	int total = 0;
 
 	for (const auto &ao : outputs) {
 		int rg = output_mixer_get_rg(*ao);
 		if (rg >= 0) {
-			totalrg += rg;
-			++okrg;
+			total += rg;
+			++ok;
 		}
 	}
 
-	if (okrg == 0)
+	if (ok == 0)
 		return -1;
 
-	return totalrg / okrg;
+	return total / ok;
 }
 
 enum class SetVolumeResult {
