@@ -17,34 +17,23 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef MPD_STORAGE_COMMANDS_HXX
-#define MPD_STORAGE_COMMANDS_HXX
+#pragma once
 
-#include "CommandResult.hxx"
+extern "C" {
+#include <libavutil/samplefmt.h>
+}
 
-struct Instance;
-class Client;
-class Storage;
-class Request;
-class Response;
+#include <fmt/format.h>
 
-CommandResult
-handle_listfiles_storage(Response &r, Storage &storage, const char *uri);
+template<>
+struct fmt::formatter<AVSampleFormat> : formatter<string_view>
+{
+	template<typename FormatContext>
+	auto format(const AVSampleFormat format, FormatContext &ctx) {
+		const char *name = av_get_sample_fmt_name(format);
+		if (name == nullptr)
+			name = "?";
 
-CommandResult
-handle_listfiles_storage(Client &client, Response &r, const char *uri);
-
-CommandResult
-handle_listmounts(Client &client, Request request, Response &response);
-
-CommandResult
-handle_mount(Client &client, Request request, Response &response);
-
-CommandResult
-handle_unmount(Client &client, Request request, Response &response);
-
-[[gnu::pure]]
-bool
-mount_commands_available(Instance &instance) noexcept;
-
-#endif
+		return formatter<string_view>::format(name, ctx);
+	}
+};
