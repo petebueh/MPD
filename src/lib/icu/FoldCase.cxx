@@ -17,53 +17,25 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "CaseFold.hxx"
-#include "config.h"
-
-#ifdef HAVE_ICU_CASE_FOLD
-
-#include "util/AllocatedString.hxx"
-
-#ifdef HAVE_ICU
-#include "Util.hxx"
+#include "FoldCase.hxx"
 #include "util/AllocatedArray.hxx"
 
 #include <unicode/ucol.h>
 #include <unicode/ustring.h>
-#else
-#include <algorithm>
-#endif
 
-#include <memory>
-
-#include <string.h>
-
-AllocatedString
-IcuCaseFold(std::string_view src) noexcept
-try {
-#ifdef HAVE_ICU
-	const auto u = UCharFromUTF8(src);
-	if (u.data() == nullptr)
-		return {src};
-
-	AllocatedArray<UChar> folded(u.size() * 2U);
+AllocatedArray<UChar>
+IcuFoldCase(std::basic_string_view<UChar> src) noexcept
+{
+	AllocatedArray<UChar> dest(src.size() * 2U);
 
 	UErrorCode error_code = U_ZERO_ERROR;
-	size_t folded_length = u_strFoldCase(folded.data(), folded.size(),
-					     u.data(), u.size(),
-					     U_FOLD_CASE_DEFAULT,
-					     &error_code);
-	if (folded_length == 0 || error_code != U_ZERO_ERROR)
-		return {src};
+	auto length = u_strFoldCase(dest.data(), dest.size(),
+				    src.data(), src.size(),
+				    U_FOLD_CASE_DEFAULT,
+				    &error_code);
+	if (U_FAILURE(error_code))
+		return nullptr;
 
-	folded.SetSize(folded_length);
-	return UCharToUTF8(std::basic_string_view{folded.data(), folded.size()});
-
-#else
-#error not implemented
-#endif
-} catch (...) {
-	return {src};
+	dest.SetSize(length);
+	return dest;
 }
-
-#endif /* HAVE_ICU_CASE_FOLD */

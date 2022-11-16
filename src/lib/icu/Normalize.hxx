@@ -17,21 +17,24 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef MPD_ICU_CASE_FOLD_HXX
-#define MPD_ICU_CASE_FOLD_HXX
+#pragma once
 
-#include "config.h"
-
-#ifdef HAVE_ICU
-#define HAVE_ICU_CASE_FOLD
+#include <unicode/umachine.h>
 
 #include <string_view>
 
-class AllocatedString;
+template<class T> class AllocatedArray;
 
-AllocatedString
-IcuCaseFold(std::string_view src) noexcept;
+/**
+ * @return the normalized string (or nullptr on error)
+ */
+[[gnu::pure]]
+AllocatedArray<UChar>
+IcuNormalize(std::basic_string_view<UChar> src) noexcept;
 
-#endif
-
-#endif
+/**
+ * @return the normalized string (or nullptr on error)
+ */
+[[gnu::pure]]
+AllocatedArray<UChar>
+IcuNormalizeCaseFold(std::basic_string_view<UChar> src) noexcept;

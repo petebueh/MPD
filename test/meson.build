@@ -199,6 +199,7 @@ test(
   'TestSongFilter',
   executable(
     'TestSongFilter',
+    'TestStringFilter.cxx',
     'TestTagSongFilter.cxx',
     include_directories: inc,
     dependencies: [
@@ -271,7 +272,8 @@ if enable_database
       dependencies: [
         log_dep,
         tag_dep,
-        storage_glue_dep,
+        fs_dep,
+        storage_plugins_dep,
         gtest_dep,
       ],
     ),
