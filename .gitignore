@@ -9,4 +9,4 @@ __pycache__/
 
 /.clangd/
 /compile_commands.json
-src/.DS_Store
+*.DS_Store
