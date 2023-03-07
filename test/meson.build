@@ -39,6 +39,7 @@ executable(
   include_directories: inc,
   dependencies: [
     config_dep,
+    fmt_dep,
   ],
 )
 
@@ -65,6 +66,7 @@ test(
     include_directories: inc,
     dependencies: [
       gtest_dep,
+      fmt_dep,
     ],
   ),
   protocol: 'gtest',
@@ -147,6 +149,7 @@ executable(
   include_directories: inc,
   dependencies: [
     fs_dep,
+    io_fs_dep,
   ],
 )
 
@@ -177,6 +180,8 @@ if zlib_dep.found()
     include_directories: inc,
     dependencies: [
       fs_dep,
+      io_fs_dep,
+      zlib_dep,
     ],
   )
 endif
@@ -252,6 +257,7 @@ if enable_database
     '../src/TagSave.cxx',
     include_directories: inc,
     dependencies: [
+      fmt_dep,
       pcm_basic_dep,
       song_dep,
       fs_dep,
@@ -381,6 +387,7 @@ executable(
   '../src/TagFile.cxx',
   include_directories: inc,
   dependencies: [
+    fmt_dep,
     playlist_glue_dep,
     input_glue_dep,
     archive_glue_dep,
@@ -444,6 +451,7 @@ executable(
   '../src/TagSave.cxx',
   include_directories: inc,
   dependencies: [
+      fmt_dep,
     decoder_glue_dep,
     input_glue_dep,
     archive_glue_dep,
@@ -608,7 +616,7 @@ executable(
   'run_output.cxx',
   include_directories: inc,
   dependencies: [
-    output_glue_dep,
+    output_registry_dep,
     encoder_glue_dep,
     event_dep,
     cmdline_dep,
