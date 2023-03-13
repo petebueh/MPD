@@ -31,7 +31,6 @@ event = static_library(
   'TimerList.cxx',
   'CoarseTimerEvent.cxx',
   'FineTimerEvent.cxx',
-  'IdleEvent.cxx',
   'InjectEvent.cxx',
   'DeferEvent.cxx',
   'MaskMonitor.cxx',
@@ -47,6 +46,7 @@ event = static_library(
   include_directories: inc,
   dependencies: [
     log_dep,
+    io_dep,
     uring_dep,
   ],
 )
