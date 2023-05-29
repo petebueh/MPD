@@ -74,10 +74,14 @@ public:
 	 */
 	int LockGetVolume();
 
+	int LockGetReplayGain();
+
 	/**
 	 * Throws on error.
 	 */
 	void LockSetVolume(unsigned volume);
+
+	void LockSetReplayGain(unsigned rg);
 
 private:
 	void _Open();
@@ -112,6 +116,8 @@ protected:
 	 */
 	virtual int GetVolume() = 0;
 
+	virtual int GetReplayGain() { return 0; }
+
 	/**
 	 * Sets the volume.
 	 *
@@ -122,4 +128,6 @@ protected:
 	 * @param volume the new volume (0..100 including)
 	 */
 	virtual void SetVolume(unsigned volume) = 0;
+
+	virtual void SetReplayGain(unsigned rg) { (void)rg; }
 };
