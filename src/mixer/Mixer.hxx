@@ -73,14 +73,14 @@ public:
 	 * Throws on error.
 	 */
 	int LockGetVolume();
-
+	
 	int LockGetReplayGain();
 
 	/**
 	 * Throws on error.
 	 */
 	void LockSetVolume(unsigned volume);
-
+	
 	void LockSetReplayGain(unsigned rg);
 
 private:
@@ -115,9 +115,8 @@ protected:
 	 * unavailable
 	 */
 	virtual int GetVolume() = 0;
-
+	
 	virtual int GetReplayGain() { return 0; }
-
 
 	/**
 	 * Sets the volume.

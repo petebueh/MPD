@@ -208,7 +208,7 @@ void
 MultipleOutputs::SetReplayGain(unsigned rg)
 {
 	assert(rg <= 999);
-
+	
     SetReplayGainResult result = SetReplayGainResult::NO_MIXER;
 	std::exception_ptr error;
 
@@ -239,6 +239,7 @@ MultipleOutputs::SetReplayGain(unsigned rg)
 	case SetReplayGainResult::OK:
 		break;
 	}
+	
 }
 
 static int

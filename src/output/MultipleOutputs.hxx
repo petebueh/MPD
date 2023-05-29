@@ -120,6 +120,9 @@ public:
 	 */
 	[[gnu::pure]]
 	int GetVolume() const noexcept;
+	
+	[[gnu::pure]]
+	int GetReplayGain() const noexcept;
 
 	[[gnu::pure]]
 	int GetReplayGain() const noexcept;
@@ -132,6 +135,8 @@ public:
 	 * @param volume the volume (range 0..100)
 	 */
 	void SetVolume(unsigned volume);
+	
+	void SetReplayGain(unsigned rg);
 
 	void SetReplayGain(unsigned rg);
 

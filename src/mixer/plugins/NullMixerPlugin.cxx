@@ -9,7 +9,6 @@ class NullMixer final : public Mixer {
 	 * The current volume in percent (0..100).
 	 */
 	unsigned volume;
-
 	unsigned rg;
 
 public:
@@ -29,7 +28,7 @@ public:
 	int GetVolume() override {
 		return volume;
 	}
-
+	
 	int GetReplayGain() override {
 		return rg;
 	}
