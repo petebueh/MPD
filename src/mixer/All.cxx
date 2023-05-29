@@ -59,6 +59,47 @@ MultipleOutputs::GetVolume() const noexcept
 	return total / ok;
 }
 
+gcc_pure
+static int
+output_mixer_get_rg(const AudioOutputControl &ao) noexcept
+{
+	if (!ao.IsEnabled())
+		return -1;
+
+	auto *mixer = ao.GetMixer();
+	if (!mixer->IsPlugin(null_mixer_plugin))
+		return -1;
+
+	try {
+		return mixer->LockGetReplayGain();
+	} catch (...) {
+		FmtError(mixer_domain,
+			 "Failed to read mixer for '{}': {}",
+			 ao.GetName(), std::current_exception());
+		return -1;
+	}
+}
+
+int
+MultipleOutputs::GetReplayGain() const noexcept
+{
+	unsigned ok = 0;
+	int total = 0;
+
+	for (const auto &ao : outputs) {
+		int rg = output_mixer_get_rg(*ao);
+		if (rg >= 0) {
+			total += rg;
+			++ok;
+		}
+	}
+
+	if (ok == 0)
+		return -1;
+
+	return total / ok;
+}
+
 enum class SetVolumeResult {
 	NO_MIXER,
 	DISABLED,
@@ -128,6 +169,74 @@ MultipleOutputs::SetVolume(unsigned volume)
 		std::rethrow_exception(error);
 
 	case SetVolumeResult::OK:
+		break;
+	}
+}
+
+enum class SetReplayGainResult {
+	NO_MIXER,
+	DISABLED,
+	ERROR,
+	OK,
+};
+
+static SetReplayGainResult
+output_mixer_set_rg(AudioOutputControl &ao, unsigned rg)
+{
+	assert(rg <= 999);
+
+	if (!ao.IsEnabled())
+		return SetReplayGainResult::NO_MIXER;
+
+	auto *mixer = ao.GetMixer();
+	if (!mixer->IsPlugin(null_mixer_plugin))
+		return SetReplayGainResult::DISABLED;
+
+	try {
+		mixer->LockSetReplayGain(rg);
+		return SetReplayGainResult::OK;
+	} catch (...) {
+		FmtError(mixer_domain,
+			 "Failed to set replay gain for '{}': {}",
+			 ao.GetName(), std::current_exception());
+			std::throw_with_nested(std::runtime_error(fmt::format("Failed to set mixer for '{}'",
+								      ao.GetName())));
+	}
+}
+
+void
+MultipleOutputs::SetReplayGain(unsigned rg)
+{
+	assert(rg <= 999);
+
+    SetReplayGainResult result = SetReplayGainResult::NO_MIXER;
+	std::exception_ptr error;
+
+	for (const auto &ao : outputs) {
+		try {
+			auto r = output_mixer_set_rg(*ao, rg);
+			if (r > result)
+				result = r;
+		} catch (...) {
+			/* remember the first error */
+			if (!error) {
+				error = std::current_exception();
+				result = SetReplayGainResult::ERROR;
+			}
+		}
+	}
+
+	switch (result) {
+	case SetReplayGainResult::NO_MIXER:
+		throw std::runtime_error{"No mixer"};
+
+	case SetReplayGainResult::DISABLED:
+		throw std::runtime_error{"All outputs are disabled"};
+
+	case SetReplayGainResult::ERROR:
+		std::rethrow_exception(error);
+
+	case SetReplayGainResult::OK:
 		break;
 	}
 }
