@@ -11,6 +11,8 @@ class NullMixer final : public Mixer {
 	unsigned volume;
 	unsigned rg;
 
+	unsigned rg;
+
 public:
 	explicit NullMixer(MixerListener &_listener)
 		:Mixer(null_mixer_plugin, _listener),
@@ -29,6 +31,10 @@ public:
 		return volume;
 	}
 	
+	int GetReplayGain() override {
+		return rg;
+	}
+
 	int GetReplayGain() override {
 		return rg;
 	}
