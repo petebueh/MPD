@@ -101,6 +101,7 @@ static constexpr struct command commands[] = {
 #ifdef ENABLE_CHROMAPRINT
 	{ "getfingerprint", PERMISSION_READ, 1, 1, handle_getfingerprint },
 #endif
+	{ "getrg", PERMISSION_READ, 0, 0, handle_getrg },
 	{ "getvol", PERMISSION_READ, 0, 0, handle_getvol },
 	{ "idle", PERMISSION_READ, 0, -1, handle_idle },
 	{ "kill", PERMISSION_ADMIN, -1, -1, handle_kill },
