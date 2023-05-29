@@ -27,6 +27,13 @@ MixerMemento::GetVolume(const MultipleOutputs &outputs) noexcept
 	return last_hardware_volume;
 }
 
+int
+MixerMemento::GetReplayGain(const MultipleOutputs &outputs) noexcept
+{
+	last_hardware_rg = outputs.GetReplayGain();
+	return last_hardware_rg;
+}
+
 inline bool
 MixerMemento::SetSoftwareVolume(MultipleOutputs &outputs, unsigned volume)
 {
@@ -45,6 +52,15 @@ MixerMemento::SetHardwareVolume(MultipleOutputs &outputs, unsigned volume)
 	last_hardware_volume = -1;
 
 	outputs.SetVolume(volume);
+}
+
+inline void
+MixerMemento::SetReplayGain(MultipleOutputs &outputs, unsigned rg)
+{
+	/* reset the cache */
+	last_hardware_rg = -1;
+
+	outputs.SetReplayGain(rg);
 }
 
 void
