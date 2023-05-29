@@ -22,6 +22,8 @@ class MixerMemento {
 	
 	int last_hardware_rg = -1;
 
+	int last_hardware_rg = -1;
+
 public:
 	/**
 	 * Flush the hardware volume cache.
@@ -33,6 +35,9 @@ public:
 	[[gnu::pure]]
 	int GetVolume(const MultipleOutputs &outputs) noexcept;
 	
+	[[gnu::pure]]
+	int GetReplayGain(const MultipleOutputs &outputs) noexcept;
+
 	[[gnu::pure]]
 	int GetReplayGain(const MultipleOutputs &outputs) noexcept;
 

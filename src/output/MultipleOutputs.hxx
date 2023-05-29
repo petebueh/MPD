@@ -124,6 +124,9 @@ public:
 	[[gnu::pure]]
 	int GetReplayGain() const noexcept;
 
+	[[gnu::pure]]
+	int GetReplayGain() const noexcept;
+
 	/**
 	 * Sets the volume on all available mixers.
 	 *
@@ -133,6 +136,8 @@ public:
 	 */
 	void SetVolume(unsigned volume);
 	
+	void SetReplayGain(unsigned rg);
+
 	void SetReplayGain(unsigned rg);
 
 	/**

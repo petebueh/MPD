@@ -128,6 +128,6 @@ protected:
 	 * @param volume the new volume (0..100 including)
 	 */
 	virtual void SetVolume(unsigned volume) = 0;
-	
+
 	virtual void SetReplayGain(unsigned rg) { (void)rg; }
 };

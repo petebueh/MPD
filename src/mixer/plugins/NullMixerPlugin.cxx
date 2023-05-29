@@ -36,6 +36,7 @@ public:
 	void SetVolume(unsigned _volume) override {
 		volume = _volume;
 	}
+
 	void SetReplayGain(unsigned _rg) override {
 		rg = _rg;
 	}
