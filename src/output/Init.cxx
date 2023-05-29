@@ -280,11 +280,12 @@ audio_output_new(EventLoop &normal_event_loop, EventLoop &rt_event_loop,
 			  plugin->name);
 	}
 
-	/* use the real-time I/O thread only for the ALSA plugin;
+	/* use the real-time I/O thread only for the ALSA and Jack plugin;
+	   For low latency playback, Jack Server is often run with realtime priority and configured with small buffers.
 	   other plugins like httpd don't need real-time so badly,
 	   because they have larger buffers */
 	// TODO: don't hard-code the plugin name
-	auto &event_loop = StringIsEqual(plugin->name, "alsa")
+	auto &event_loop = StringIsEqual(plugin->name, "alsa") ||  StringIsEqual(plugin->name, "jack")
 		? rt_event_loop
 		: normal_event_loop;
 
