@@ -149,7 +149,7 @@ ReplayGainFilter::Update()
 
 	if (mixer != nullptr && mixer->IsPlugin(null_mixer_plugin)) {
 		/* update the null mixer replay gain */
-		
+
 		unsigned _rg = (volume * base) / PCM_VOLUME_1;
 		if (_rg > 999)
 			_rg = 999;
@@ -163,7 +163,7 @@ ReplayGainFilter::Update()
 		}
 	} else if (mixer != nullptr && !mixer->IsPlugin(null_mixer_plugin)) {
 		/* update the hardware mixer volume, except for null mixer */
-
+		
 		unsigned _volume = (volume * base) / PCM_VOLUME_1;
 		if (_volume > 100)
 			_volume = 100;
