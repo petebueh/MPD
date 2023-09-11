@@ -4,7 +4,9 @@
 #include "Pool.hxx"
 #include "Item.hxx"
 #include "util/Cast.hxx"
-#include "util/IntrusiveList.hxx"
+#include "util/djb_hash.hxx"
+#include "util/IntrusiveHashSet.hxx"
+#include "util/SpanCast.hxx"
 #include "util/VarSize.hxx"
 
 #include <array>
@@ -12,99 +14,112 @@
 #include <cstdint>
 #include <limits>
 
-#include <string.h>
-#include <stdlib.h>
-
 Mutex tag_pool_lock;
 
-struct TagPoolSlot {
-	IntrusiveListHook<IntrusiveHookMode::NORMAL> list_hook;
+struct TagPoolKey {
+	std::string_view value;
+	TagType type;
+
+	friend constexpr auto operator<=>(const TagPoolKey &,
+					  const TagPoolKey &) noexcept = default;
+
+	struct Hash {
+		[[gnu::pure]]
+		std::size_t operator()(const TagPoolKey &key) const noexcept {
+			return djb_hash(AsBytes(key.value)) ^ key.type;
+		}
+	};
+};
+
+struct TagPoolItem {
+	IntrusiveHashSetHook<IntrusiveHookMode::NORMAL> hash_set_hook;
 	uint8_t ref = 1;
 	TagItem item;
 
 	static constexpr unsigned MAX_REF = std::numeric_limits<decltype(ref)>::max();
 
-	TagPoolSlot(TagType type,
+	TagPoolItem(TagType type,
 		    std::string_view value) noexcept {
 		item.type = type;
 		*std::copy(value.begin(), value.end(), item.value) = 0;
 	}
 
-	static TagPoolSlot *Create(TagType type,
+	static TagPoolItem *Create(TagType type,
 				   std::string_view value) noexcept;
+
+	struct GetKey {
+		[[gnu::pure]]
+		constexpr TagPoolKey operator()(const TagItem &i) const noexcept {
+			return { i.value, i.type };
+		}
+
+		[[gnu::pure]]
+		constexpr TagPoolKey operator()(const TagPoolItem &i) const noexcept {
+			return operator()(i.item);
+		}
+	};
+
+	struct CanIncrementRef {
+		constexpr bool operator()(const TagPoolItem &i) const noexcept {
+			return i.ref < MAX_REF;
+		}
+	};
 };
 
-TagPoolSlot *
-TagPoolSlot::Create(TagType type,
+TagPoolItem *
+TagPoolItem::Create(TagType type,
 		    std::string_view value) noexcept
 {
-	TagPoolSlot *dummy;
-	return NewVarSize<TagPoolSlot>(sizeof(dummy->item.value),
+	TagPoolItem *dummy;
+	return NewVarSize<TagPoolItem>(sizeof(dummy->item.value),
 				       value.size() + 1,
 				       type,
 				       value);
 }
 
-static std::array<IntrusiveList<TagPoolSlot,
-				IntrusiveListMemberHookTraits<&TagPoolSlot::list_hook>>,
-		  16127> slots;
+static IntrusiveHashSet<TagPoolItem, 16384,
+	IntrusiveHashSetOperators<TagPoolKey::Hash,
+				  std::equal_to<TagPoolKey>,
+				  TagPoolItem::GetKey>,
+	IntrusiveHashSetMemberHookTraits<&TagPoolItem::hash_set_hook>,
+	IntrusiveHashSetOptions{.zero_initialized = true}> tag_pool;
 
-static inline unsigned
-calc_hash(TagType type, std::string_view p) noexcept
+static constexpr TagPoolItem *
+TagItemToPoolItem(TagItem *item) noexcept
 {
-	unsigned hash = 5381;
-
-	for (auto ch : p)
-		hash = (hash << 5) + hash + ch;
-
-	return hash ^ type;
-}
-
-static constexpr TagPoolSlot *
-tag_item_to_slot(TagItem *item) noexcept
-{
-	return &ContainerCast(*item, &TagPoolSlot::item);
-}
-
-static inline auto &
-tag_value_list(TagType type, std::string_view value) noexcept
-{
-	return slots[calc_hash(type, value) % slots.size()];
+	return &ContainerCast(*item, &TagPoolItem::item);
 }
 
 TagItem *
 tag_pool_get_item(TagType type, std::string_view value) noexcept
 {
-	auto &list = tag_value_list(type, value);
+	const auto [position, inserted] =
+		tag_pool.insert_check_if(TagPoolKey{value, type},
+					 TagPoolItem::CanIncrementRef{});
 
-	for (auto &slot : list) {
-		if (slot.item.type == type &&
-		    value == slot.item.value &&
-		    slot.ref < TagPoolSlot::MAX_REF) {
-			assert(slot.ref > 0);
-			++slot.ref;
-			return &slot.item;
-		}
+	if (inserted) {
+		auto *pool_item = TagPoolItem::Create(type, value);
+		tag_pool.insert_commit(position, *pool_item);
+		return &pool_item->item;
+	} else {
+		++position->ref;
+		return &position->item;
 	}
-
-	auto slot = TagPoolSlot::Create(type, value);
-	list.push_front(*slot);
-	return &slot->item;
 }
 
 TagItem *
 tag_pool_dup_item(TagItem *item) noexcept
 {
-	TagPoolSlot *slot = tag_item_to_slot(item);
+	TagPoolItem *pool_item = TagItemToPoolItem(item);
 
-	assert(slot->ref > 0);
+	assert(pool_item->ref > 0);
 
-	if (slot->ref < TagPoolSlot::MAX_REF) {
-		++slot->ref;
+	if (pool_item->ref < TagPoolItem::MAX_REF) {
+		++pool_item->ref;
 		return item;
 	} else {
 		/* the reference counter overflows above MAX_REF;
-		   obtain a reference to a different TagPoolSlot which
+		   obtain a reference to a different TagPoolItem which
 		   isn't yet "full" */
 		return tag_pool_get_item(item->type, item->value);
 	}
@@ -113,13 +128,13 @@ tag_pool_dup_item(TagItem *item) noexcept
 void
 tag_pool_put_item(TagItem *item) noexcept
 {
-	TagPoolSlot *const slot = tag_item_to_slot(item);
-	assert(slot->ref > 0);
-	--slot->ref;
+	TagPoolItem *const pool_item = TagItemToPoolItem(item);
+	assert(pool_item->ref > 0);
+	--pool_item->ref;
 
-	if (slot->ref > 0)
+	if (pool_item->ref > 0)
 		return;
 
-	slot->list_hook.unlink();
-	DeleteVarSize(slot);
+	tag_pool.erase(tag_pool.iterator_to(*pool_item));
+	DeleteVarSize(pool_item);
 }
