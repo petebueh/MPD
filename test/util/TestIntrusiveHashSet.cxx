@@ -38,12 +38,14 @@ TEST(IntrusiveHashSet, Basic)
 {
 	IntItem a{1}, b{2}, c{3}, d{4}, e{5}, f{1};
 
-	IntrusiveHashSet<IntItem, 3> set;
+	IntrusiveHashSet<IntItem, 3,
+			 IntrusiveHashSetOperators<IntItem::Hash,
+						   IntItem::Equal>> set;
 
 	{
 		auto [position, inserted] = set.insert_check(2);
 		ASSERT_TRUE(inserted);
-		set.insert(position, b);
+		set.insert_commit(position, b);
 	}
 
 	ASSERT_FALSE(set.insert_check(2).second);
@@ -52,7 +54,7 @@ TEST(IntrusiveHashSet, Basic)
 	{
 		auto [position, inserted] = set.insert_check(a);
 		ASSERT_TRUE(inserted);
-		set.insert(position, a);
+		set.insert_commit(position, a);
 	}
 
 	set.insert(c);
@@ -100,7 +102,7 @@ TEST(IntrusiveHashSet, Basic)
 	{
 		auto [position, inserted] = set.insert_check(f);
 		ASSERT_TRUE(inserted);
-		set.insert(position, f);
+		set.insert_commit(position, f);
 	}
 
 	ASSERT_EQ(set.find(a), set.iterator_to(f));
@@ -115,4 +117,35 @@ TEST(IntrusiveHashSet, Basic)
 	ASSERT_EQ(d.value, -1);
 	ASSERT_EQ(e.value, -1);
 	ASSERT_EQ(f.value, -1);
+}
+
+TEST(IntrusiveHashSet, Multi)
+{
+	IntItem a{1}, b{2}, c{3}, d{4}, e{5}, f{1};
+
+	IntrusiveHashSet<IntItem, 3,
+			 IntrusiveHashSetOperators<IntItem::Hash,
+						   IntItem::Equal>> set;
+
+	set.insert(a);
+	set.insert(b);
+	set.insert(c);
+	set.insert(d);
+	set.insert(e);
+	set.insert(f);
+
+	ASSERT_NE(set.find(f), set.end());
+	ASSERT_TRUE(&*set.find(a) == &a || &*set.find(a) == &f);
+	ASSERT_TRUE(&*set.find(f) == &a || &*set.find(f) == &f);
+
+	ASSERT_EQ(set.remove_and_dispose_key(a, [](auto*){}), 2U);
+	ASSERT_EQ(set.find(a), set.end());
+	ASSERT_EQ(set.find(f), set.end());
+
+	ASSERT_NE(set.find(b), set.end());
+	ASSERT_EQ(&*set.find(b), &b);
+	ASSERT_EQ(set.remove_and_dispose_key(b, [](auto*){}), 1U);
+	ASSERT_EQ(set.find(b), set.end());
+	ASSERT_EQ(set.remove_and_dispose_key(b, [](auto*){}), 0U);
+	ASSERT_EQ(set.find(b), set.end());
 }

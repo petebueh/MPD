@@ -134,6 +134,7 @@ executable(
   'run_resolver.cxx',
   include_directories: inc,
   dependencies: [
+    fmt_dep,
     net_dep,
     util_dep,
   ],
@@ -262,6 +263,21 @@ if enable_database
       song_dep,
       fs_dep,
       event_dep,
+      db_plugins_dep,
+    ],
+  )
+
+  executable(
+    'LoadDatabase',
+    'LoadDatabase.cxx',
+    '../src/db/PlaylistVector.cxx',
+    '../src/SongSave.cxx',
+    '../src/TagSave.cxx',
+    include_directories: inc,
+    dependencies: [
+      fmt_dep,
+      pcm_basic_dep,
+      song_dep,
       db_plugins_dep,
     ],
   )

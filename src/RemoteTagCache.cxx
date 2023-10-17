@@ -31,7 +31,7 @@ RemoteTagCache::Lookup(const std::string &uri) noexcept
 	auto [tag, value] = map.insert_check(uri);
 	if (value) {
 		auto item = new Item(*this, uri);
-		map.insert(tag, *item);
+		map.insert_commit(tag, *item);
 		waiting_list.push_back(*item);
 		lock.unlock();
 
@@ -83,8 +83,7 @@ RemoteTagCache::InvokeHandlers() noexcept
 	const std::scoped_lock<Mutex> lock(mutex);
 
 	while (!invoke_list.empty()) {
-		auto &item = invoke_list.front();
-		invoke_list.pop_front();
+		auto &item = invoke_list.pop_front();
 		idle_list.push_back(item);
 
 		const ScopeUnlock unlock(mutex);
@@ -93,8 +92,7 @@ RemoteTagCache::InvokeHandlers() noexcept
 
 	/* evict items if there are too many */
 	while (map.size() > MAX_SIZE && !idle_list.empty()) {
-		auto *item = &idle_list.front();
-		idle_list.pop_front();
+		auto *item = &idle_list.pop_front();
 		map.erase(map.iterator_to(*item));
 		delete item;
 	}

@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // author: Max Kellermann <max.kellermann@gmail.com>
 
-#ifndef FILE_READER_HXX
-#define FILE_READER_HXX
+#pragma once
 
 #include "Reader.hxx"
-#include "fs/AllocatedPath.hxx"
 
 #ifdef _WIN32
 #include <fileapi.h>
@@ -17,13 +15,14 @@
 #endif
 
 #include <cstdint>
+#include <utility> // for std::exchange()
+
+#include <sys/types.h> // for off_t
 
 class Path;
 class FileInfo;
 
 class FileReader final : public Reader {
-	AllocatedPath path;
-
 #ifdef _WIN32
 	HANDLE handle;
 #else
@@ -35,17 +34,15 @@ public:
 
 #ifdef _WIN32
 	FileReader(FileReader &&other) noexcept
-		:path(std::move(other.path)),
-		 handle(std::exchange(other.handle, INVALID_HANDLE_VALUE)) {}
+		:handle(std::exchange(other.handle, INVALID_HANDLE_VALUE)) {}
 
 	~FileReader() noexcept {
-		if (IsDefined())
-			Close();
+		if (handle != INVALID_HANDLE_VALUE)
+			CloseHandle(handle);
 	}
 #else
 	FileReader(FileReader &&other) noexcept
-		:path(std::move(other.path)),
-		 fd(std::move(other.fd)) {}
+		:fd(std::move(other.fd)) {}
 #endif
 
 
@@ -65,12 +62,10 @@ public:
 	}
 #endif
 
-	void Close() noexcept;
-
 	FileInfo GetFileInfo() const;
 
 	[[gnu::pure]]
-	uint64_t GetSize() const noexcept {
+	uint_least64_t GetSize() const noexcept {
 #ifdef _WIN32
 		LARGE_INTEGER size;
 		return GetFileSizeEx(handle, &size)
@@ -82,7 +77,7 @@ public:
 	}
 
 	[[gnu::pure]]
-	uint64_t GetPosition() const noexcept {
+	uint_least64_t GetPosition() const noexcept {
 #ifdef _WIN32
 		LARGE_INTEGER zero;
 		zero.QuadPart = 0;
@@ -103,7 +98,5 @@ public:
 	void Skip(off_t offset);
 
 	/* virtual methods from class Reader */
-	std::size_t Read(void *data, std::size_t size) override;
+	std::size_t Read(std::span<std::byte> dest) override;
 };
-
-#endif
