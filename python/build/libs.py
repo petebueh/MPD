@@ -125,8 +125,8 @@ libmodplug = AutotoolsProject(
 )
 
 libopenmpt = AutotoolsProject(
-    'https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.6.6+release.autotools.tar.gz',
-    '6ddb9e26a430620944891796fefb1bbb38bd9148f6cfc558810c0d3f269876c7',
+    'https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.7.3+release.autotools.tar.gz',
+    '2cf8369b7916b09264f3f14b9fb6cef35a6e9bee0328dec4f49d98211ccfd722',
     'lib/libopenmpt.a',
     [
         '--disable-shared', '--enable-static',
@@ -165,8 +165,8 @@ gme = CmakeProject(
 )
 
 ffmpeg = FfmpegProject(
-    'http://ffmpeg.org/releases/ffmpeg-6.0.tar.xz',
-    '57be87c22d9b49c112b6d24bc67d42508660e6b718b3db89c44e47e289137082',
+    'http://ffmpeg.org/releases/ffmpeg-6.1.tar.xz',
+    '488c76e57dd9b3bee901f71d5c95eaf1db4a5a31fe46a28654e837144207c270',
     'lib/libavcodec.a',
     [
         '--disable-shared', '--enable-static',
@@ -473,6 +473,8 @@ ffmpeg = FfmpegProject(
         '--disable-decoder=pam',
         '--disable-decoder=pbm',
         '--disable-decoder=pcx',
+        '--disable-decoder=pdv',
+        '--disable-decoder=pfm',
         '--disable-decoder=pgm',
         '--disable-decoder=pgmyuv',
         '--disable-decoder=pgssub',
@@ -609,16 +611,16 @@ ffmpeg = FfmpegProject(
 )
 
 openssl = OpenSSLProject(
-    ('https://www.openssl.org/source/openssl-3.1.3.tar.gz',
-     'https://artfiles.org/openssl.org/source/openssl-3.1.3.tar.gz'),
-    'f0316a2ebd89e7f2352976445458689f80302093788c466692fb2a188b2eacf6',
+    ('https://www.openssl.org/source/openssl-3.1.4.tar.gz',
+     'https://artfiles.org/openssl.org/source/openssl-3.1.4.tar.gz'),
+    '840af5366ab9b522bde525826be3ef0fb0af81c6a9ebd84caa600fea1731eee3',
     'include/openssl/ossl_typ.h',
 )
 
 curl = CmakeProject(
-    ('https://curl.se/download/curl-8.2.1.tar.xz',
-     'https://github.com/curl/curl/releases/download/curl-8_2_1/curl-8.2.1.tar.xz'),
-    'dd322f6bd0a20e6cebdfd388f69e98c3d183bed792cf4713c8a7ef498cba4894',
+    ('https://curl.se/download/curl-8.4.0.tar.xz',
+     'https://github.com/curl/curl/releases/download/curl-8_4_0/curl-8.4.0.tar.xz'),
+    '16c62a9c4af0f703d28bda6d7bbf37ba47055ad3414d70dec63e2e6336f2a82d',
     'lib/libcurl.a',
     [
         '-DBUILD_CURL_EXE=OFF',

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright The Music Player Daemon Project
 
-#include "ModifiedSinceSongFilter.hxx"
+#include "AddedSinceSongFilter.hxx"
 #include "LightSong.hxx"
 #include "time/ISO8601.hxx"
 #include "util/StringBuffer.hxx"
@@ -11,13 +11,13 @@
 using std::string_view_literals::operator""sv;
 
 std::string
-ModifiedSinceSongFilter::ToExpression() const noexcept
+AddedSinceSongFilter::ToExpression() const noexcept
 {
-	return fmt::format("(modified-since \"{}\")"sv, FormatISO8601(value).c_str());
+	return fmt::format("(added-since \"{}\")"sv, FormatISO8601(value).c_str());
 }
 
 bool
-ModifiedSinceSongFilter::Match(const LightSong &song) const noexcept
+AddedSinceSongFilter::Match(const LightSong &song) const noexcept
 {
-	return song.mtime >= value;
+	return song.added >= value;
 }

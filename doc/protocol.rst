@@ -357,6 +357,10 @@ may contain :ref:`song tags <tags>` and other metadata, specifically:
   format.  Example:
   "*2008-09-28T20:04:57Z*"
 
+- ``added`` [#since_0_24]_: the time stamp when the file was added in ISO 8601.
+  A negative value means that this is unknown/unavailable.
+  Example: "*2023-11-25T13:25:07Z*"
+
 Recipes
 *******
 
@@ -702,7 +706,8 @@ Song ids on the other hand are stable: an id is assigned to a song
 when it is added, and will stay the same, no matter how much it is
 moved around.  Adding the same song twice will assign different ids to
 them, and a deleted-and-readded song will have a new id.  This way, a
-client can always be sure the correct song is being used.
+client can always be sure the correct song is being used.  Song ids are not
+preserved across :program:`MPD` restarts.
 
 Many commands come in two flavors, one for each address type.
 Whenever possible, ids should be used.
