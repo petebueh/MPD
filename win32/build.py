@@ -39,9 +39,6 @@ root_path = os.path.join(arch_path, 'root')
 from build.libs import *
 thirdparty_libs = [
     libmpdclient,
-    libogg,
-    opus,
-    flac,
     zlib,
     libid3tag,
     liblame,
@@ -50,7 +47,6 @@ thirdparty_libs = [
     wildmidi,
     gme,
     ffmpeg,
-    curl,
     libnfs,
     libsamplerate,
 ]

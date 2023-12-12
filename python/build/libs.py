@@ -7,7 +7,6 @@ from build.meson import MesonProject
 from build.cmake import CmakeProject
 from build.autotools import AutotoolsProject
 from build.ffmpeg import FfmpegProject
-from build.openssl import OpenSSLProject
 
 libmpdclient = MesonProject(
     'https://www.musicpd.org/download/libmpdclient/2/libmpdclient-2.20.tar.xz',
@@ -24,45 +23,6 @@ libsamplerate = CmakeProject(
         '-DINSTALL_DOCS=OFF',
         '-DINSTALL_CMAKE_PACKAGE_MODULE=OFF',
     ],
-)
-
-libogg = CmakeProject(
-    'http://downloads.xiph.org/releases/ogg/libogg-1.3.5.tar.xz',
-    'c4d91be36fc8e54deae7575241e03f4211eb102afb3fc0775fbbc1b740016705',
-    'lib/libogg.a',
-    [
-        '-DBUILD_SHARED_LIBS=OFF',
-        '-DINSTALL_DOCS=OFF',
-        '-DINSTALL_CMAKE_PACKAGE_MODULE=OFF',
-    ],
-)
-
-opus = AutotoolsProject(
-    'https://downloads.xiph.org/releases/opus/opus-1.4.tar.gz',
-    'c9b32b4253be5ae63d1ff16eea06b94b5f0f2951b7a02aceef58e3a3ce49c51f',
-    'lib/libopus.a',
-    [
-        '--disable-shared', '--enable-static',
-        '--disable-doc',
-        '--disable-extra-programs',
-    ],
-
-    # suppress "visibility default" from opus_defines.h
-    cppflags='-DOPUS_EXPORT=',
-)
-
-flac = AutotoolsProject(
-    'http://downloads.xiph.org/releases/flac/flac-1.4.3.tar.xz',
-    '6c58e69cd22348f441b861092b825e591d0b822e106de6eb0ee4d05d27205b70',
-    'lib/libFLAC.a',
-    [
-        '--disable-shared', '--enable-static',
-        '--disable-stack-smash-protection',
-        '--disable-xmms-plugin', '--disable-cpplibs',
-        '--disable-doxygen-docs',
-        '--disable-programs',
-    ],
-    subdirs=['include', 'src/libFLAC'],
 )
 
 zlib = ZlibProject(
@@ -608,48 +568,6 @@ ffmpeg = FfmpegProject(
         '--disable-bsf=vp9_superframe',
         '--disable-bsf=vp9_superframe_split',
     ],
-)
-
-openssl = OpenSSLProject(
-    ('https://www.openssl.org/source/openssl-3.1.4.tar.gz',
-     'https://artfiles.org/openssl.org/source/openssl-3.1.4.tar.gz'),
-    '840af5366ab9b522bde525826be3ef0fb0af81c6a9ebd84caa600fea1731eee3',
-    'include/openssl/ossl_typ.h',
-)
-
-curl = CmakeProject(
-    ('https://curl.se/download/curl-8.4.0.tar.xz',
-     'https://github.com/curl/curl/releases/download/curl-8_4_0/curl-8.4.0.tar.xz'),
-    '16c62a9c4af0f703d28bda6d7bbf37ba47055ad3414d70dec63e2e6336f2a82d',
-    'lib/libcurl.a',
-    [
-        '-DBUILD_CURL_EXE=OFF',
-        '-DBUILD_SHARED_LIBS=OFF',
-        '-DCURL_DISABLE_LDAP=ON',
-        '-DCURL_DISABLE_TELNET=ON',
-        '-DCURL_DISABLE_DICT=ON',
-        '-DCURL_DISABLE_FILE=ON',
-        '-DCURL_DISABLE_FTP=ON',
-        '-DCURL_DISABLE_TFTP=ON',
-        '-DCURL_DISABLE_LDAPS=ON',
-        '-DCURL_DISABLE_RTSP=ON',
-        '-DCURL_DISABLE_PROXY=ON',
-        '-DCURL_DISABLE_POP3=ON',
-        '-DCURL_DISABLE_IMAP=ON',
-        '-DCURL_DISABLE_SMTP=ON',
-        '-DCURL_DISABLE_GOPHER=ON',
-        '-DCURL_DISABLE_COOKIES=ON',
-        '-DCURL_DISABLE_CRYPTO_AUTH=ON',
-        '-DCURL_DISABLE_ALTSVC=ON',
-        '-DCMAKE_USE_LIBSSH2=OFF',
-        '-DCURL_WINDOWS_SSPI=OFF',
-        '-DCURL_DISABLE_NTLM=ON',
-        '-DBUILD_TESTING=OFF',
-    ],
-    windows_configure_args=[
-        '-DCURL_USE_SCHANNEL=ON',
-    ],
-    patches='src/lib/curl/patches',
 )
 
 libnfs = AutotoolsProject(

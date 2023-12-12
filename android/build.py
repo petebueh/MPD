@@ -32,16 +32,11 @@ from build.toolchain import AndroidNdkToolchain
 from build.libs import *
 thirdparty_libs = [
     libmpdclient,
-    libogg,
-    opus,
-    flac,
     libid3tag,
     libmodplug,
     wildmidi,
     gme,
     ffmpeg,
-    openssl,
-    curl,
     libnfs,
 ]
 
