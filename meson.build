@@ -17,6 +17,9 @@ project(
     'flac:default_library=static',
     'fmt:default_library=static',
     'gtest:default_library=static',
+    'id3tag:default_library=static',
+    'lame:default_library=static',
+    'libmpdclient:default_library=static',
     'liburing:default_library=static',
     'ogg:default_library=static',
     'openssl:default_library=static',
@@ -33,6 +36,10 @@ project(
     'flac:warning_level=0',
     'fmt:warning_level=0',
     'gtest:warning_level=0',
+    'id3tag:werror=false',
+    'id3tag:warning_level=0',
+    'lame:werror=false',
+    'lame:warning_level=0',
     'liburing:warning_level=0',
     'sqlite3:warning_level=0',
     'oggiopus:werror=false',
@@ -71,7 +78,12 @@ project(
     'curl:smtp=disabled',
     'curl:telnet=disabled',
     'curl:tftp=disabled',
+    'lame:decoder=false',
+    'lame:tools=disabled',
+    'libmpdclient:documentation=false',
+    'libmpdclient:test=false',
     'openssl:build_cli=false',
+    'openssl:asm=disabled', # work around "call to undeclared function "asm" on Android
     'opus:docs=disabled',
     'opus:extra-programs=disabled',
     'opus:tests=disabled',
@@ -100,8 +112,11 @@ configure_file(output: 'Version.h', configuration: version_conf)
 conf = configuration_data()
 conf.set_quoted('SYSTEM_CONFIG_FILE_LOCATION', join_paths(get_option('prefix'), get_option('sysconfdir'), 'mpd.conf'))
 
-common_cppflags = [
+common_global_cppflags = [
   '-D_GNU_SOURCE',
+]
+
+common_cppflags = [
 ]
 
 test_global_common_flags = [
@@ -250,8 +265,11 @@ if is_android
   subdir('android')
 endif
 
-add_global_arguments(common_cppflags, language: 'c')
-add_global_arguments(common_cppflags, language: 'cpp')
+add_global_arguments(common_global_cppflags, language: 'c')
+add_global_arguments(common_global_cppflags, language: 'cpp')
+
+add_project_arguments(common_cppflags, language: 'c')
+add_project_arguments(common_cppflags, language: 'cpp')
 
 enable_daemon = not is_windows and not is_android and get_option('daemon')
 conf.set('ENABLE_DAEMON', enable_daemon)
@@ -566,7 +584,7 @@ if is_android
     '-lz',
   ]
   more_deps += [
-    declare_dependency(sources: [classes_jar]),
+    declare_dependency(sources: [bridge_header]),
     java_dep,
   ]
 else

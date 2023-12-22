@@ -5,6 +5,9 @@
 /flac-*/
 /fmt-*/
 /googletest-*/
+/lame-*/
+/libid3tag-*/
+/libmpdclient/
 /openssl-*/
 /opus-*/
 /sqlite-*/

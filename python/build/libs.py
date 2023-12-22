@@ -3,16 +3,9 @@ from os.path import abspath
 
 from build.project import Project
 from build.zlib import ZlibProject
-from build.meson import MesonProject
 from build.cmake import CmakeProject
 from build.autotools import AutotoolsProject
 from build.ffmpeg import FfmpegProject
-
-libmpdclient = MesonProject(
-    'https://www.musicpd.org/download/libmpdclient/2/libmpdclient-2.20.tar.xz',
-    '18793f68e939c3301e34d8fcadea1f7daa24143941263cecadb80126194e277d',
-    'lib/libmpdclient.a',
-)
 
 libsamplerate = CmakeProject(
     'https://github.com/libsndfile/libsamplerate/releases/download/0.2.2/libsamplerate-0.2.2.tar.xz',
@@ -30,48 +23,6 @@ zlib = ZlibProject(
      'https://github.com/madler/zlib/releases/download/v1.3/zlib-1.3.tar.xz'),
     '8a9ba2898e1d0d774eca6ba5b4627a11e5588ba85c8851336eb38de4683050a7',
     'lib/libz.a',
-)
-
-libid3tag = AutotoolsProject(
-    'ftp://ftp.mars.org/pub/mpeg/libid3tag-0.15.1b.tar.gz',
-    'e5808ad997ba32c498803822078748c3',
-    'lib/libid3tag.a',
-    [
-        '--disable-shared', '--enable-static',
-
-        # without this, libid3tag's configure.ac ignores -O* and -f*
-        '--disable-debugging',
-    ],
-    autogen=True,
-
-    edits={
-        # fix bug in libid3tag's configure.ac which discards all but the last optimization flag
-        'configure.ac': lambda data: re.sub(r'optimize="\$1"', r'optimize="$optimize $1"', data, count=1),
-    }
-)
-
-libmad = AutotoolsProject(
-    'ftp://ftp.mars.org/pub/mpeg/libmad-0.15.1b.tar.gz',
-    '1be543bc30c56fb6bea1d7bf6a64e66c',
-    'lib/libmad.a',
-    [
-        '--disable-shared', '--enable-static',
-
-        # without this, libmad's configure.ac ignores -O* and -f*
-        '--disable-debugging',
-    ],
-    autogen=True,
-)
-
-liblame = AutotoolsProject(
-    'http://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz',
-    'ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e',
-    'lib/libmp3lame.a',
-    [
-        '--disable-shared', '--enable-static',
-        '--disable-gtktest', '--disable-analyzer-hooks',
-        '--disable-decoder', '--disable-frontend',
-    ],
 )
 
 libmodplug = AutotoolsProject(
