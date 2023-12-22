@@ -196,13 +196,16 @@ Compiling for Android
 
 You need:
 
-* Android SDK
-* `Android NDK r25b <https://developer.android.com/ndk/downloads>`_
+* Android SDK (sdk platform 29, build tools 29.0.3)
+* `Android NDK r26b <https://developer.android.com/ndk/downloads>`_
 * `Meson 0.56.0 <http://mesonbuild.com/>`__ and `Ninja
   <https://ninja-build.org/>`__
 * cmake
 * pkg-config
 * quilt
+* zip
+* libtool
+* python 3.9+
 
 Just like with the native build, unpack the :program:`MPD` source
 tarball and change into the directory.  Then, instead of
@@ -216,7 +219,8 @@ tarball and change into the directory.  Then, instead of
    --buildtype=debugoptimized -Db_ndebug=true \
    -Dwrap_mode=forcefallback \
    -Dandroid_debug_keystore=$HOME/.android/debug.keystore
- ninja android/apk/mpd-debug.apk
+ cd ../../android
+ ./gradlew assembleDebug
 
 :envvar:`SDK_PATH` is the absolute path where you installed the
 Android SDK; :envvar:`NDK_PATH` is the Android NDK installation path;
@@ -771,10 +775,10 @@ brackets if you want to configure a port::
 
 To bind to a local socket (UNIX domain socket), specify an absolute
 path or a path starting with a tilde (~).  Some clients default to
-connecting to :file:`/var/run/mpd/socket` so this may be a good
+connecting to :file:`/run/mpd/socket` so this may be a good
 choice::
 
- bind_to_address "/var/run/mpd/socket"
+ bind_to_address "/run/mpd/socket"
 
 On Linux, local sockets can be bound to a name without a socket inode
 on the filesystem; MPD implements this by prepending ``@`` to the

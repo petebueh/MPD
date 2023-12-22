@@ -9,6 +9,8 @@
 #include "event/Loop.hxx"
 #include "net/SocketError.hxx"
 #include "net/UniqueSocketDescriptor.hxx"
+#include "util/PackedBigEndian.hxx"
+#include "util/PackedLittleEndian.hxx"
 #include "util/SpanCast.hxx"
 #include "Log.hxx"
 
@@ -105,7 +107,7 @@ template<typename T>
 static bool
 SendT(SocketDescriptor s, const T &buffer) noexcept
 {
-	return Send(s, std::as_bytes(std::span{&buffer, 1}));
+	return Send(s, ReferenceAsBytes(buffer));
 }
 
 static bool
