@@ -3,58 +3,52 @@
 
 #include "config.h"
 #include "LocateUri.hxx"
-#include "Print.hxx"
+#include "Length.hxx"
 #include "PlaylistAny.hxx"
 #include "PlaylistSong.hxx"
 #include "SongEnumerator.hxx"
 #include "SongPrint.hxx"
 #include "song/DetachedSong.hxx"
+#include "song/LightSong.hxx"
 #include "fs/Traits.hxx"
 #include "thread/Mutex.hxx"
 #include "Partition.hxx"
 #include "Instance.hxx"
 
+#include <fmt/format.h>
+
+static SignedSongTime get_duration(const DetachedSong &song) {
+	const auto duration = song.GetDuration();
+	return duration.IsNegative() ? (SignedSongTime)0 : song.GetDuration();
+}
+
 static void
-playlist_provider_print(Response &r,
+playlist_provider_length(Response &r,
 			const SongLoader &loader,
 			const char *uri,
-			SongEnumerator &e,
-			unsigned start_index,
-			unsigned end_index,
-			bool detail) noexcept
+			SongEnumerator &e) noexcept
 {
 	const auto base_uri = uri != nullptr
 		? PathTraitsUTF8::GetParent(uri)
 		: ".";
 
 	std::unique_ptr<DetachedSong> song;
-
-	for (unsigned i = 0;
-	     i < end_index && (song = e.NextSong()) != nullptr;
-	     ++i) {
-		if (i < start_index) {
-			/* skip songs before the start index */
-			continue;
-		}
-
+	unsigned i = 0;
+	SignedSongTime playtime = (SignedSongTime)0;
+	while ((song = e.NextSong()) != nullptr) {
 		if (playlist_check_translate_song(*song, base_uri,
-						  loader) &&
-		    detail)
-			song_print_info(r, *song);
-		else
-			/* fallback if no detail was requested or no
-			   detail was available */
-			song_print_uri(r, *song);
+						  loader))
+			playtime += get_duration(*song);
+		i++;
 	}
+	r.Fmt(FMT_STRING("songs: {}\n"), i);
+	r.Fmt(FMT_STRING("playtime: {}\n"), playtime.RoundS());
 }
 
 bool
-playlist_file_print(Response &r, Partition &partition,
+playlist_file_length(Response &r, Partition &partition,
 		    const SongLoader &loader,
-		    const LocatedUri &uri,
-		    unsigned start_index,
-		    unsigned end_index,
-		    bool detail)
+		    const LocatedUri &uri)
 {
 	Mutex mutex;
 
@@ -70,7 +64,6 @@ playlist_file_print(Response &r, Partition &partition,
 	if (playlist == nullptr)
 		return false;
 
-	playlist_provider_print(r, loader, uri.canonical_uri, *playlist,
-				start_index, end_index, detail);
+	playlist_provider_length(r, loader, uri.canonical_uri, *playlist);
 	return true;
 }

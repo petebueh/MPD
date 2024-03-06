@@ -447,7 +447,8 @@ Querying :program:`MPD`'s status
     - ``partition``: a partition was added, removed or changed
     - ``sticker``: the sticker database has been modified.
     - ``subscription``: a client has subscribed or unsubscribed to a channel
-    - ``message``: a message was received on a channel this client is subscribed to; this event is only emitted when the queue is empty
+    - ``message``: a message was received on a channel this client is subscribed to;
+      this event is only emitted when the client's message queue is empty
     - ``neighbor``: a neighbor was found or lost
     - ``mount``: the mount list has changed
 
@@ -944,15 +945,17 @@ remote playlists (absolute URI with a supported scheme).
 
 .. _command_listplaylist:
 
-:command:`listplaylist {NAME}`
+:command:`listplaylist {NAME} [{START:END}]`
     Lists the songs in the playlist.  Playlist plugins are
-    supported.
+    supported. A range may be specified to list
+    only a part of the playlist. [#since_0_24]_
 
 .. _command_listplaylistinfo:
 
-:command:`listplaylistinfo {NAME}`
+:command:`listplaylistinfo {NAME} [{START:END}]`
     Lists the songs with metadata in the playlist.  Playlist
-    plugins are supported.
+    plugins are supported. A range may be specified to list
+    only a part of the playlist. [#since_0_24]_
 
 .. _command_listplaylists:
 
@@ -1000,6 +1003,19 @@ remote playlists (absolute URI with a supported scheme).
     playlist `NAME.m3u`.
 
     The second parameter can be a range. [#since_0_23_3]_
+
+.. _command_playlistlength:
+
+:command:`playlistlength {NAME}`
+    Count the number of songs and their total playtime (seconds) in the
+    playlist.
+
+    Example::
+
+     playlistlength example
+     songs: 10
+     playtime: 8192
+     OK
 
 .. _command_playlistmove:
 
@@ -1749,7 +1765,8 @@ Client to client
 Clients can communicate with each others over "channels".  A
 channel is created by a client subscribing to it.  More than
 one client can be subscribed to a channel at a time; all of
-them will receive the messages which get sent to it.
+them will receive the messages which get sent to it.  A client
+can be subscribed to up to 16 channels simultaneously.
 
 Each time a client subscribes or unsubscribes, the global idle
 event ``subscription`` is generated.  In
