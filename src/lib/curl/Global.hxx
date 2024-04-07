@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // author: Max Kellermann <max.kellermann@gmail.com>
 
-#ifndef CURL_GLOBAL_HXX
-#define CURL_GLOBAL_HXX
+#pragma once
 
 #include "Multi.hxx"
 #include "event/CoarseTimerEvent.hxx"
@@ -18,7 +17,6 @@ class CurlGlobal final {
 	CurlMulti multi;
 
 	DeferEvent defer_read_info;
-
 	CoarseTimerEvent timeout_event;
 
 public:
@@ -56,5 +54,3 @@ private:
 	/* callback for #timeout_event */
 	void OnTimeout() noexcept;
 };
-
-#endif

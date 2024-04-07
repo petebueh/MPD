@@ -182,6 +182,8 @@ static constexpr struct {
 #endif
 #if LIBMPDCLIENT_CHECK_VERSION(2,21,0)
 	{ TAG_MOOD, MPD_TAG_MOOD },
+	{ TAG_MUSICBRAINZ_RELEASEGROUPID,
+	  MPD_TAG_MUSICBRAINZ_RELEASEGROUPID },
 #endif
 	{ TAG_NUM_OF_ITEM_TYPES, MPD_TAG_COUNT }
 };
@@ -206,6 +208,11 @@ ProxySong::ProxySong(const mpd_song *song)
 	const auto _mtime = mpd_song_get_last_modified(song);
 	if (_mtime > 0)
 		mtime = std::chrono::system_clock::from_time_t(_mtime);
+
+#if LIBMPDCLIENT_CHECK_VERSION(2,21,0)
+	if (const auto _added = mpd_song_get_added(song); _added > 0)
+		added = std::chrono::system_clock::from_time_t(_added);
+#endif
 
 	start_time = SongTime::FromS(mpd_song_get_start(song));
 	end_time = SongTime::FromS(mpd_song_get_end(song));
@@ -326,6 +333,12 @@ SendConstraints(mpd_connection *connection, const DatabaseSelection &selection,
 			if (!mpd_search_add_sort_name(connection, "Last-Modified",
 						      selection.descending))
 				return false;
+#if LIBMPDCLIENT_CHECK_VERSION(2,21,0)
+		} else if (selection.sort == SORT_TAG_ADDED) {
+			if (!mpd_search_add_sort_name(connection, "Added",
+						      selection.descending))
+				return false;
+#endif
 		} else {
 			const auto sort = Convert(selection.sort);
 			/* if this is an unsupported tag, the sort
@@ -806,6 +819,12 @@ IsSortSupported(TagType tag_type) noexcept
 	if (tag_type == TagType(SORT_TAG_LAST_MODIFIED)) {
 		return true;
 	}
+
+#if LIBMPDCLIENT_CHECK_VERSION(2,21,0)
+	if (tag_type == TagType(SORT_TAG_ADDED)) {
+		return true;
+	}
+#endif
 
 	return Convert(tag_type) != MPD_TAG_COUNT;
 }

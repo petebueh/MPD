@@ -166,6 +166,51 @@ TEST(IntrusiveList, AutoUnlink)
 	ASSERT_TRUE(b.is_linked());
 }
 
+TEST(IntrusiveList, Tag)
+{
+	struct A {};
+	struct B {};
+
+	struct TaggedItem
+		: public IntrusiveListHook<IntrusiveHookMode::NORMAL, A>,
+		  public IntrusiveListHook<IntrusiveHookMode::NORMAL, B> {};
+
+	TaggedItem one, two;
+
+	IntrusiveList<TaggedItem, IntrusiveListBaseHookTraits<TaggedItem, A>> a;
+	IntrusiveList<TaggedItem, IntrusiveListBaseHookTraits<TaggedItem, B>> b;
+
+	EXPECT_TRUE(a.empty());
+	EXPECT_TRUE(b.empty());
+
+	a.push_back(one);
+	a.push_back(two);
+
+	EXPECT_FALSE(a.empty());
+	EXPECT_TRUE(b.empty());
+
+	b.push_back(one);
+
+	EXPECT_FALSE(a.empty());
+	EXPECT_FALSE(b.empty());
+
+	a.clear();
+
+	EXPECT_TRUE(a.empty());
+	EXPECT_FALSE(b.empty());
+
+	a.push_back(two);
+	a.push_back(one);
+
+	EXPECT_FALSE(a.empty());
+	EXPECT_FALSE(b.empty());
+
+	b.erase(b.iterator_to(one));
+
+	EXPECT_FALSE(a.empty());
+	EXPECT_TRUE(b.empty());
+}
+
 TEST(IntrusiveList, Merge)
 {
 	using Item = CharItem<IntrusiveHookMode::NORMAL>;
@@ -233,49 +278,4 @@ TEST(IntrusiveList, Sort)
 	ASSERT_EQ(ToString(list, list.begin(), 11), "abbcmqtyz_a");
 	ASSERT_EQ(&*std::next(list.begin(), 1), &items[2]);
 	ASSERT_EQ(&*std::next(list.begin(), 2), &items[4]);
-}
-
-#include "util/IntrusiveSortedList.hxx"
-
-TEST(IntrusiveSortedList, Basic)
-{
-	using Item = CharItem<IntrusiveHookMode::NORMAL>;
-
-	struct Compare {
-		constexpr bool operator()(const Item &a, const Item &b) noexcept {
-			return a.ch < b.ch;
-		}
-	};
-
-	Item items[]{'z', 'a', 'b', 'q', 'b', 'c', 't', 'm', 'y'};
-
-	IntrusiveSortedList<Item, Compare> list;
-	ASSERT_EQ(ToString(list, list.begin(), 2), "__");
-
-	list.insert(items[0]);
-	ASSERT_EQ(ToString(list, list.begin(), 3), "z_z");
-
-	list.insert(items[1]);
-	ASSERT_EQ(ToString(list, list.begin(), 4), "az_a");
-
-	list.insert(items[2]);
-	ASSERT_EQ(ToString(list, list.begin(), 5), "abz_a");
-
-	list.insert(items[3]);
-	ASSERT_EQ(ToString(list, list.begin(), 6), "abqz_a");
-
-	list.insert(items[4]);
-	ASSERT_EQ(ToString(list, list.begin(), 7), "abbqz_a");
-
-	list.insert(items[5]);
-	ASSERT_EQ(ToString(list, list.begin(), 8), "abbcqz_a");
-
-	list.insert(items[6]);
-	ASSERT_EQ(ToString(list, list.begin(), 9), "abbcqtz_a");
-
-	list.insert(items[7]);
-	ASSERT_EQ(ToString(list, list.begin(), 10), "abbcmqtz_a");
-
-	list.insert(items[8]);
-	ASSERT_EQ(ToString(list, list.begin(), 11), "abbcmqtyz_a");
 }

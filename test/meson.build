@@ -1,32 +1,6 @@
-gtest_compile_args = [
-  '-Wno-undef',
-]
-
-if compiler.get_id() == 'gcc'
-  gtest_compile_args += [
-    '-Wno-suggest-attribute=format',
-    '-Wno-suggest-attribute=noreturn',
-    '-Wno-missing-declarations',
-  ]
-endif
-
-if compiler.get_id() == 'clang' and compiler.version().version_compare('>=9')
-  gtest_compile_args += [
-    # work around clang warning caused by GTest's wrong "-lpthread"
-    # compiler flag
-    '-Wno-unused-command-line-argument',
-
-    # work around "error: 'ScopedTrace' was marked unused but was
-    # used"
-    '-Wno-used-but-marked-unused',
-  ]
-endif
-
-gtest_main_dep = dependency('gtest', main: true, fallback: ['gtest', 'gtest_main_dep'])
-gtest_dep = declare_dependency(
-  dependencies: [gtest_main_dep],
-  compile_args: gtest_compile_args,
-)
+gtest_dep = dependency('gtest', main: true,
+                       include_type: 'system',
+                       fallback: ['gtest', 'gtest_main_dep'])
 
 subdir('util')
 subdir('net')
@@ -134,6 +108,7 @@ executable(
   'run_resolver.cxx',
   include_directories: inc,
   dependencies: [
+    fmt_dep,
     net_dep,
     util_dep,
   ],
@@ -249,6 +224,8 @@ if enable_database
   executable(
     'DumpDatabase',
     'DumpDatabase.cxx',
+    '../src/db/Configured.cxx',
+    '../src/db/DatabaseGlue.cxx',
     '../src/db/Registry.cxx',
     '../src/db/Selection.cxx',
     '../src/db/PlaylistVector.cxx',
@@ -263,6 +240,22 @@ if enable_database
       fs_dep,
       event_dep,
       db_plugins_dep,
+    ],
+  )
+
+  executable(
+    'LoadDatabase',
+    'LoadDatabase.cxx',
+    '../src/db/PlaylistVector.cxx',
+    '../src/SongSave.cxx',
+    '../src/TagSave.cxx',
+    include_directories: inc,
+    dependencies: [
+      fmt_dep,
+      pcm_basic_dep,
+      song_dep,
+      db_plugins_dep,
+      zlib_dep,
     ],
   )
 
@@ -478,6 +471,7 @@ if libid3tag_dep.found()
       tag_dep,
       input_glue_dep,
       archive_glue_dep,
+      libid3tag_dep,
     ],
   )
 endif

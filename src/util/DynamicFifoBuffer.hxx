@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // author: Max Kellermann <max.kellermann@gmail.com>
 
-#ifndef DYNAMIC_FIFO_BUFFER_HXX
-#define DYNAMIC_FIFO_BUFFER_HXX
+#pragma once
 
 #include "ForeignFifoBuffer.hxx"
 
@@ -83,7 +82,7 @@ public:
 	/**
 	 * Append data to the buffer, growing it as needed.
 	 */
-	void Append(std::span<const std::byte> src) noexcept {
+	void Append(std::span<const T> src) noexcept {
 		std::copy(src.begin(), src.end(), Write(src.size()));
 		Append(src.size());
 	}
@@ -91,5 +90,3 @@ public:
 protected:
 	using ForeignFifoBuffer<T>::GetBuffer;
 };
-
-#endif

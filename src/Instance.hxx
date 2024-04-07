@@ -25,6 +25,7 @@ class NeighborGlue;
 #ifdef ENABLE_DATABASE
 #include "db/DatabaseListener.hxx"
 #include "db/Ptr.hxx"
+
 class Storage;
 class UpdateService;
 #ifdef ENABLE_INOTIFY
@@ -40,6 +41,7 @@ struct Partition;
 class StateFile;
 class RemoteTagCache;
 class StickerDatabase;
+class StickerCleanupService;
 class InputCacheManager;
 
 /**
@@ -71,7 +73,7 @@ struct Instance final
 	/**
 	 * A thread running an #EventLoop for non-blocking (bulk) I/O.
 	 */
-	EventThread io_thread;
+	EventThread io_thread{true};
 
 	/**
 	 * Another thread running an #EventLoop for non-blocking
@@ -82,7 +84,7 @@ struct Instance final
 	EventThread rtio_thread;
 
 #ifdef ENABLE_SYSTEMD_DAEMON
-	Systemd::Watchdog systemd_watchdog;
+	Systemd::Watchdog systemd_watchdog{event_loop};
 #endif
 
 	std::unique_ptr<InputCacheManager> input_cache;
@@ -91,7 +93,7 @@ struct Instance final
 	 * Monitor for global idle events to be broadcasted to all
 	 * partitions.
 	 */
-	MaskMonitor idle_monitor;
+	MaskMonitor idle_monitor{event_loop, BIND_THIS_METHOD(OnIdle)};
 
 #ifdef ENABLE_NEIGHBOR_PLUGINS
 	std::unique_ptr<NeighborGlue> neighbors;
@@ -125,6 +127,10 @@ struct Instance final
 
 #ifdef ENABLE_SQLITE
 	std::unique_ptr<StickerDatabase> sticker_database;
+
+	std::unique_ptr<StickerCleanupService> sticker_cleanup;
+
+	bool need_sticker_cleanup = false;
 #endif
 
 	Instance();
@@ -187,6 +193,9 @@ struct Instance final
 	bool HasStickerDatabase() const noexcept {
 		return sticker_database != nullptr;
 	}
+
+	void OnStickerCleanupDone(bool changed) noexcept;
+	void StartStickerCleanup();
 #endif
 
 	void BeginShutdownUpdate() noexcept;
@@ -200,6 +209,8 @@ struct Instance final
 #endif
 
 	void FlushCaches() noexcept;
+
+	void OnPlaylistDeleted(const char *name) const noexcept;
 
 private:
 #ifdef ENABLE_DATABASE

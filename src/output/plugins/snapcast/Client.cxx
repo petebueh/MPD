@@ -9,6 +9,8 @@
 #include "event/Loop.hxx"
 #include "net/SocketError.hxx"
 #include "net/UniqueSocketDescriptor.hxx"
+#include "util/PackedBigEndian.hxx"
+#include "util/PackedLittleEndian.hxx"
 #include "util/SpanCast.hxx"
 #include "Log.hxx"
 
@@ -97,7 +99,7 @@ SnapcastClient::OnSocketReady(unsigned flags) noexcept
 static bool
 Send(SocketDescriptor s, std::span<const std::byte> buffer) noexcept
 {
-	auto nbytes = s.Write(buffer.data(), buffer.size());
+	auto nbytes = s.Send(buffer);
 	return nbytes == ssize_t(buffer.size());
 }
 
@@ -105,7 +107,7 @@ template<typename T>
 static bool
 SendT(SocketDescriptor s, const T &buffer) noexcept
 {
-	return Send(s, std::as_bytes(std::span{&buffer, 1}));
+	return Send(s, ReferenceAsBytes(buffer));
 }
 
 static bool
@@ -243,12 +245,12 @@ SnapcastClient::SendStreamTags(std::span<const std::byte> payload) noexcept
 }
 
 BufferedSocket::InputResult
-SnapcastClient::OnSocketInput(void *data, size_t length) noexcept
+SnapcastClient::OnSocketInput(std::span<std::byte> src) noexcept
 {
-	auto &base = *(SnapcastBase *)data;
+	auto &base = *(SnapcastBase *)src.data();
 
-	if (length < sizeof(base) ||
-	    length < sizeof(base) + base.size)
+	if (src.size() < sizeof(base) ||
+	    src.size() < sizeof(base) + base.size)
 		return InputResult::MORE;
 
 	base.received = ToSnapcastTimestamp(GetEventLoop().SteadyNow());

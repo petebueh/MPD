@@ -1028,6 +1028,12 @@ It is highly recommended to configure a fixed format, because a stream cannot sw
      - Chooses an encoder plugin. A list of encoder plugins can be found in the encoder plugin reference :ref:`encoder_plugins`.
    * - **max_clients MC**
      - Sets a limit, number of concurrent clients. When set to 0 no limit will apply.
+   * - **genre GENRE**
+     - The genre of the stream. Will be reflected in the `icy-genre` header of the stream.
+   * - **website URL**
+     - The website of the stream. Will be reflected in the `icy-url` header of the stream.
+
+The `name` from the `audio_output` block that uses this output plugin will be reflected as the stream name in the `icy-name` header of the stream.
 
 null
 ----
@@ -1139,7 +1145,7 @@ Connect to a `PipeWire <https://pipewire.org/>`_ server.  Requires
    * - **target NAME**
      - Link to the given target.  If not specified, let the PipeWire
        manager select a target.  To get a list of available targets,
-       type ``pw-cli dump short Node``
+       type ``pw-cli ls Node``
    * - **remote NAME**
      - The name of the remote to connect to.  The default is
        ``pipewire-0``.

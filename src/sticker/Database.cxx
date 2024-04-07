@@ -10,11 +10,26 @@
 #include "util/StringCompare.hxx"
 #include "util/ScopeExit.hxx"
 
+#include <fmt/format.h>
 #include <cassert>
 #include <iterator>
 #include <array>
+#include <stdexcept>
 
 using namespace Sqlite;
+
+enum sticker_sql_find {
+	STICKER_SQL_FIND,
+	STICKER_SQL_FIND_VALUE,
+	STICKER_SQL_FIND_LT,
+	STICKER_SQL_FIND_GT,
+
+	STICKER_SQL_FIND_EQ_INT,
+	STICKER_SQL_FIND_LT_INT,
+	STICKER_SQL_FIND_GT_INT,
+
+	STICKER_SQL_FIND_COUNT
+};
 
 enum sticker_sql {
 	STICKER_SQL_GET,
@@ -23,11 +38,36 @@ enum sticker_sql {
 	STICKER_SQL_INSERT,
 	STICKER_SQL_DELETE,
 	STICKER_SQL_DELETE_VALUE,
-	STICKER_SQL_FIND,
-	STICKER_SQL_FIND_VALUE,
-	STICKER_SQL_FIND_LT,
-	STICKER_SQL_FIND_GT,
+	STICKER_SQL_DISTINCT_TYPE_URI,
+	STICKER_SQL_TRANSACTION_BEGIN,
+	STICKER_SQL_TRANSACTION_COMMIT,
+	STICKER_SQL_TRANSACTION_ROLLBACK,
+	STICKER_SQL_NAMES,
+
 	STICKER_SQL_COUNT
+};
+
+static constexpr auto sticker_sql_find = std::array {
+	//[STICKER_SQL_FIND] =
+	"SELECT uri,value FROM sticker WHERE type=? AND uri LIKE (? || '%') AND name=?",
+
+	//[STICKER_SQL_FIND_VALUE] =
+	"SELECT uri,value FROM sticker WHERE type=? AND uri LIKE (? || '%') AND name=? AND value=?",
+
+	//[STICKER_SQL_FIND_LT] =
+	"SELECT uri,value FROM sticker WHERE type=? AND uri LIKE (? || '%') AND name=? AND value<?",
+
+	//[STICKER_SQL_FIND_GT] =
+	"SELECT uri,value FROM sticker WHERE type=? AND uri LIKE (? || '%') AND name=? AND value>?",
+
+	//[STICKER_SQL_FIND_EQ_INT] =
+	"SELECT uri,value FROM sticker WHERE type=? AND uri LIKE (? || '%') AND name=? AND CAST(value AS INT)=?",
+
+	//[STICKER_SQL_FIND_LT_INT] =
+	"SELECT uri,value FROM sticker WHERE type=? AND uri LIKE (? || '%') AND name=? AND CAST(value AS INT)<?",
+
+	//[STICKER_SQL_FIND_GT_INT] =
+	"SELECT uri,value FROM sticker WHERE type=? AND uri LIKE (? || '%') AND name=? AND CAST(value AS INT)>?",
 };
 
 static constexpr auto sticker_sql = std::array {
@@ -43,17 +83,21 @@ static constexpr auto sticker_sql = std::array {
 	"DELETE FROM sticker WHERE type=? AND uri=?",
 	//[STICKER_SQL_DELETE_VALUE] =
 	"DELETE FROM sticker WHERE type=? AND uri=? AND name=?",
-	//[STICKER_SQL_FIND] =
-	"SELECT uri,value FROM sticker WHERE type=? AND uri LIKE (? || '%') AND name=?",
 
-	//[STICKER_SQL_FIND_VALUE] =
-	"SELECT uri,value FROM sticker WHERE type=? AND uri LIKE (? || '%') AND name=? AND value=?",
+	//[STICKER_SQL_DISTINCT_TYPE_URI] =
+	"SELECT DISTINCT type,uri FROM sticker",
 
-	//[STICKER_SQL_FIND_LT] =
-	"SELECT uri,value FROM sticker WHERE type=? AND uri LIKE (? || '%') AND name=? AND value<?",
+	//[STICKER_SQL_TRANSACTION_BEGIN]
+	"BEGIN",
 
-	//[STICKER_SQL_FIND_GT] =
-	"SELECT uri,value FROM sticker WHERE type=? AND uri LIKE (? || '%') AND name=? AND value>?",
+	//[STICKER_SQL_TRANSACTION_COMMIT]
+	"COMMIT",
+
+	//[STICKER_SQL_TRANSACTION_ROLLBACK]
+	"ROLLBACK",
+
+	//[STICKER_SQL_NAMES]
+	"SELECT DISTINCT name FROM sticker order by name",
 };
 
 static constexpr const char sticker_sql_create[] =
@@ -67,11 +111,10 @@ static constexpr const char sticker_sql_create[] =
 	" sticker_value ON sticker(type, uri, name);"
 	"";
 
-StickerDatabase::StickerDatabase(Path path)
-	:db(NarrowPath(path))
+StickerDatabase::StickerDatabase(const char *_path)
+	:path(_path),
+	 db(path.c_str())
 {
-	assert(!path.IsNull());
-
 	int ret;
 
 	/* create the table and index */
@@ -91,9 +134,13 @@ StickerDatabase::StickerDatabase(Path path)
 	}
 }
 
+StickerDatabase::StickerDatabase(Path _path)
+	:StickerDatabase(NarrowPath{_path}) {}
+
 StickerDatabase::~StickerDatabase() noexcept
 {
-	assert(db != nullptr);
+	if (db == nullptr)
+		return;
 
 	for (const auto &sticker : stmt) {
 		assert(sticker != nullptr);
@@ -272,7 +319,8 @@ StickerDatabase::Load(const char *type, const char *uri)
 sqlite3_stmt *
 StickerDatabase::BindFind(const char *type, const char *base_uri,
 			  const char *name,
-			  StickerOperator op, const char *value)
+			  StickerOperator op, const char *value,
+			  const char *sort, bool descending, RangeArg window)
 {
 	assert(type != nullptr);
 	assert(name != nullptr);
@@ -280,25 +328,70 @@ StickerDatabase::BindFind(const char *type, const char *base_uri,
 	if (base_uri == nullptr)
 		base_uri = "";
 
+	auto order_by = StringIsEmpty(sort)
+		? std::string()
+		: StringIsEqual(sort, "value_int")
+			? fmt::format("ORDER BY CAST(value AS INT) {}", descending ? "desc" : "asc")
+			: fmt::format("ORDER BY {} {}", sort, descending ? "desc" : "asc");
+
+	auto offset = window.IsAll()
+		? std::string()
+		: window.IsOpenEnded()
+			? fmt::format("LIMIT -1 OFFSET {}", window.start)
+			: fmt::format("LIMIT {} OFFSET {}", window.Count(), window.start);
+
+	std::string sql_str;
+	sqlite3_stmt *sql;
+
 	switch (op) {
 	case StickerOperator::EXISTS:
-		BindAll(stmt[STICKER_SQL_FIND], type, base_uri, name);
-		return stmt[STICKER_SQL_FIND];
+		sql_str = fmt::format("{} {} {}",
+			sticker_sql_find[STICKER_SQL_FIND], order_by, offset);
+		sql = Prepare(db, sql_str.c_str());
+		BindAll(sql, type, base_uri, name);
+		return sql;
 
 	case StickerOperator::EQUALS:
-		BindAll(stmt[STICKER_SQL_FIND_VALUE],
-			type, base_uri, name, value);
-		return stmt[STICKER_SQL_FIND_VALUE];
+		sql_str = fmt::format("{} {} {}",
+			sticker_sql_find[STICKER_SQL_FIND_VALUE], order_by, offset);
+		sql = Prepare(db, sql_str.c_str());
+		BindAll(sql, type, base_uri, name, value);
+		return sql;
 
 	case StickerOperator::LESS_THAN:
-		BindAll(stmt[STICKER_SQL_FIND_LT],
-			type, base_uri, name, value);
-		return stmt[STICKER_SQL_FIND_LT];
+		sql_str = fmt::format("{} {} {}",
+			sticker_sql_find[STICKER_SQL_FIND_LT], order_by, offset);
+		sql = Prepare(db, sql_str.c_str());
+		BindAll(sql, type, base_uri, name, value);
+		return sql;
 
 	case StickerOperator::GREATER_THAN:
-		BindAll(stmt[STICKER_SQL_FIND_GT],
-			type, base_uri, name, value);
-		return stmt[STICKER_SQL_FIND_GT];
+		sql_str = fmt::format("{} {} {}",
+			sticker_sql_find[STICKER_SQL_FIND_GT], order_by, offset);
+		sql = Prepare(db, sql_str.c_str());
+		BindAll(sql, type, base_uri, name, value);
+		return sql;
+
+	case StickerOperator::EQUALS_INT:
+		sql_str = fmt::format("{} {} {}",
+			sticker_sql_find[STICKER_SQL_FIND_EQ_INT], order_by, offset);
+		sql = Prepare(db, sql_str.c_str());
+		BindAll(sql, type, base_uri, name, value);
+		return sql;
+
+	case StickerOperator::LESS_THAN_INT:
+		sql_str = fmt::format("{} {} {}",
+			sticker_sql_find[STICKER_SQL_FIND_LT_INT], order_by, offset);
+		sql = Prepare(db, sql_str.c_str());
+		BindAll(sql, type, base_uri, name, value);
+		return sql;
+
+	case StickerOperator::GREATER_THAN_INT:
+		sql_str = fmt::format("{} {} {}",
+			sticker_sql_find[STICKER_SQL_FIND_GT_INT], order_by, offset);
+		sql = Prepare(db, sql_str.c_str());
+		BindAll(sql, type, base_uri, name, value);
+		return sql;
 	}
 
 	assert(false);
@@ -308,18 +401,18 @@ StickerDatabase::BindFind(const char *type, const char *base_uri,
 void
 StickerDatabase::Find(const char *type, const char *base_uri, const char *name,
 		      StickerOperator op, const char *value,
+			  const char *sort, bool descending, RangeArg window,
 		      void (*func)(const char *uri, const char *value,
 				   void *user_data),
 		      void *user_data)
 {
 	assert(func != nullptr);
 
-	sqlite3_stmt *const s = BindFind(type, base_uri, name, op, value);
+	sqlite3_stmt *const s = BindFind(type, base_uri, name, op, value, sort, descending, window);
 	assert(s != nullptr);
 
 	AtScopeExit(s) {
-		sqlite3_reset(s);
-		sqlite3_clear_bindings(s);
+		sqlite3_finalize(s);
 	};
 
 	ExecuteForEach(s, [s, func, user_data](){
@@ -327,4 +420,69 @@ StickerDatabase::Find(const char *type, const char *base_uri, const char *name,
 			     (const char*)sqlite3_column_text(s, 1),
 			     user_data);
 		});
+}
+
+std::list<StickerDatabase::StickerTypeUriPair>
+StickerDatabase::GetUniqueStickers()
+{
+	auto result = std::list<StickerTypeUriPair>{};
+	sqlite3_stmt *const s = stmt[STICKER_SQL_DISTINCT_TYPE_URI];
+	assert(s != nullptr);
+	AtScopeExit(s) {
+		sqlite3_reset(s);
+	};
+	ExecuteForEach(s, [&s, &result]() {
+		result.emplace_back((const char*)sqlite3_column_text(s, 0),
+				    (const char*)sqlite3_column_text(s, 1));
+	});
+	return result;
+}
+
+void
+StickerDatabase::Names(void (*func)(const char *value, void *user_data), void *user_data)
+{
+	assert(func != nullptr);
+
+	sqlite3_stmt *const s = stmt[STICKER_SQL_NAMES];
+	assert(s != nullptr);
+
+	AtScopeExit(s) {
+		sqlite3_reset(s);
+	};
+
+	ExecuteForEach(s, [s, func, user_data](){
+			func((const char*)sqlite3_column_text(s, 0), user_data);
+		});
+}
+
+void
+StickerDatabase::BatchDeleteNoIdle(const std::list<StickerTypeUriPair> &stickers)
+{
+	sqlite3_stmt *const s = stmt[STICKER_SQL_DELETE];
+
+	sqlite3_stmt *const begin = stmt[STICKER_SQL_TRANSACTION_BEGIN];
+	sqlite3_stmt *const rollback = stmt[STICKER_SQL_TRANSACTION_ROLLBACK];
+	sqlite3_stmt *const commit = stmt[STICKER_SQL_TRANSACTION_COMMIT];
+
+	try {
+		ExecuteBusy(begin);
+
+		for (auto &sticker: stickers) {
+			AtScopeExit(s) {
+				sqlite3_reset(s);
+				sqlite3_clear_bindings(s);
+			};
+
+			BindAll(s, sticker.first.c_str(), sticker.second.c_str());
+
+			ExecuteCommand(s);
+		}
+
+		ExecuteBusy(commit);
+	} catch (...) {
+		// "If the transaction has already been rolled back automatically by the error response,
+		// then the ROLLBACK command will fail with an error, but no harm is caused by this."
+		ExecuteBusy(rollback);
+		std::throw_with_nested(std::runtime_error{"failed to batch-delete stickers"});
+	}
 }

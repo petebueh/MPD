@@ -28,11 +28,13 @@
 
 #include "Match.hxx"
 #include "lib/sqlite/Database.hxx"
+#include "protocol/RangeArg.hxx"
 
 #include <sqlite3.h>
 
 #include <map>
 #include <string>
+#include <list>
 
 class Path;
 struct Sticker;
@@ -45,16 +47,34 @@ class StickerDatabase {
 		  SQL_INSERT,
 		  SQL_DELETE,
 		  SQL_DELETE_VALUE,
+		  SQL_DISTINCT_TYPE_URI,
+		  SQL_TRANSACTION_BEGIN,
+		  SQL_TRANSACTION_COMMIT,
+		  SQL_TRANSACTION_ROLLBACK,
+		  SQL_NAMES,
+
+		  SQL_COUNT
+	};
+
+	enum SQL_FIND {
 		  SQL_FIND,
 		  SQL_FIND_VALUE,
 		  SQL_FIND_LT,
 		  SQL_FIND_GT,
 
-		  SQL_COUNT
+		  SQL_FIND_EQ_INT,
+		  SQL_FIND_LT_INT,
+		  SQL_FIND_GT_INT,
+
+		  SQL_FIND_COUNT
 	};
+
+	std::string path;
 
 	Sqlite::Database db;
 	sqlite3_stmt *stmt[SQL_COUNT];
+
+	explicit StickerDatabase(const char *_path);
 
 public:
 	/**
@@ -64,6 +84,17 @@ public:
 	 */
 	StickerDatabase(Path path);
 	~StickerDatabase() noexcept;
+
+	StickerDatabase(StickerDatabase &&) noexcept = default;
+	StickerDatabase &operator=(StickerDatabase &&) noexcept = default;
+
+	/**
+	 * Open another connection to the same database file.
+	 */
+	[[nodiscard]]
+	StickerDatabase Reopen() const {
+		return StickerDatabase{path.c_str()};
+	}
 
 	/**
 	 * Returns one value from an object's sticker record.  Returns an
@@ -122,9 +153,29 @@ public:
 	 */
 	void Find(const char *type, const char *base_uri, const char *name,
 		  StickerOperator op, const char *value,
+		  const char *sort, bool descending, RangeArg window,
 		  void (*func)(const char *uri, const char *value,
 			       void *user_data),
 		  void *user_data);
+
+	/**
+	 * Uniq and sorted list of all sticker names
+	 */
+	void Names(void (*func)(const char *value, void *user_data), void *user_data);
+
+	using StickerTypeUriPair = std::pair<std::string, std::string>;
+
+	/**
+	 * @return A list of unique type-uri pairs of all the stickers
+	 * in the database.
+	 */
+	std::list<StickerTypeUriPair> GetUniqueStickers();
+
+	/**
+	 * Delete stickers by type and uri
+	 * @param stickers A list of stickers to delete
+	 */
+	void BatchDeleteNoIdle(const std::list<StickerTypeUriPair> &stickers);
 
 private:
 	void ListValues(std::map<std::string, std::string, std::less<>> &table,
@@ -138,7 +189,8 @@ private:
 
 	sqlite3_stmt *BindFind(const char *type, const char *base_uri,
 			       const char *name,
-			       StickerOperator op, const char *value);
+			       StickerOperator op, const char *value,
+				   const char *sort, bool descending, RangeArg window);
 };
 
 #endif

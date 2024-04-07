@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // author: Max Kellermann <max.kellermann@gmail.com>
 
-#ifndef GUNZIP_READER_HXX
-#define GUNZIP_READER_HXX
+#pragma once
 
 #include "io/Reader.hxx"
 #include "util/StaticFifoBuffer.hxx"
@@ -19,7 +18,7 @@ class GunzipReader final : public Reader {
 
 	z_stream z;
 
-	StaticFifoBuffer<Bytef, 65536> buffer;
+	StaticFifoBuffer<std::byte, 65536> buffer;
 
 public:
 	/**
@@ -34,10 +33,8 @@ public:
 	}
 
 	/* virtual methods from class Reader */
-	std::size_t Read(void *data, std::size_t size) override;
+	std::size_t Read(std::span<std::byte> dest) override;
 
 private:
 	bool FillBuffer();
 };
-
-#endif

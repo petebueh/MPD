@@ -16,7 +16,7 @@
 #include "input/InputStream.hxx"
 #include "pcm/CheckAudioFormat.hxx"
 #include "util/BitReverse.hxx"
-#include "util/ByteOrder.hxx"
+#include "util/PackedBigEndian.hxx"
 #include "tag/Handler.hxx"
 #include "DsdLib.hxx"
 
@@ -387,7 +387,7 @@ dsdiff_decode_chunk(DecoderClient &client, InputStream &is,
 		/* see how much aligned data from the remaining chunk
 		   fits into the local buffer */
 		size_t now_size = buffer_size;
-		if (remaining_bytes < (offset_type)now_size) {
+		if (std::cmp_less(remaining_bytes, now_size)) {
 			unsigned now_frames = remaining_bytes / frame_size;
 			now_size = now_frames * frame_size;
 		}

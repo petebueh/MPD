@@ -9,7 +9,15 @@ ver 0.24 (not yet released)
   - operator "starts_with"
   - show PCRE support in "config" response
   - apply Unicode normalization to case-insensitive filter expressions
+  - stickers on playlists and some tag types
+  - new commands "stickernames" and "playlistlength"
+  - new "search"/"find" filter "added-since"
+  - allow range in listplaylist and listplaylistinfo
+  - "sticker find" supports sort and window parameter and new sticker compare operators "eq", "lt" and "gt"
+  - consume only idle flags that were subscribed to
 * database
+  - attribute "added" shows when each song was added to the database
+  - fix integer overflows with 64-bit inode numbers
   - proxy: require MPD 0.21 or later
   - proxy: require libmpdclient 2.15 or later
 * archive
@@ -17,11 +25,14 @@ ver 0.24 (not yet released)
 * storage
   - curl: optimize database update
 * input
+  - alsa: limit ALSA buffer time to 2 seconds
   - curl: add "connect_timeout" configuration
 * decoder
   - ffmpeg: require FFmpeg 4.0 or later
   - ffmpeg: query supported demuxers at runtime
   - hybrid_dsd: remove
+  - mpg123: prefer over "mad"
+  - mpg123: support streaming
   - opus: implement bitrate calculation
   - sidplay: require libsidplayfp (drop support for the original sidplay)
   - wavpack: require libwavpack version 5
@@ -45,6 +56,24 @@ ver 0.24 (not yet released)
 * remove Haiku support
 * remove Boost dependency
 * require libfmt 7 or later
+* documentation: switch to sphinx-rtd-theme
+
+ver 0.23.15 (2023/12/20)
+* decoder
+  - ffmpeg: fix build failure with FFmpeg 6.1
+* output
+  - alsa: limit buffer time to 2 seconds
+
+ver 0.23.14 (2023/10/08)
+* decoder
+  - flac: fix scanning files with non-ASCII names on Windows
+  - mad: fix calculation of LAME peak values
+* mixer
+  - wasapi: fix problem setting volume
+* more libfmt 10 fixes
+* fix auto-detected systemd unit directory
+* Android
+  - require Android 7 or newer
 
 ver 0.23.13 (2023/05/22)
 * input

@@ -17,6 +17,7 @@
 #include "SongLoader.hxx"
 #include "song/DetachedSong.hxx"
 #include "BulkEdit.hxx"
+#include "playlist/Length.hxx"
 #include "playlist/PlaylistQueue.hxx"
 #include "playlist/Print.hxx"
 #include "TimePrint.hxx"
@@ -125,8 +126,10 @@ handle_listplaylist(Client &client, Request args, Response &r)
 #endif
 					   );
 
+	RangeArg range = args.ParseOptional(1, RangeArg::All());
+
 	if (playlist_file_print(r, client.GetPartition(), SongLoader(client),
-				name, false))
+				name, range.start, range.end, false))
 		return CommandResult::OK;
 
 	throw PlaylistError::NoSuchList();
@@ -142,8 +145,27 @@ handle_listplaylistinfo(Client &client, Request args, Response &r)
 #endif
 					   );
 
+	RangeArg range = args.ParseOptional(1, RangeArg::All());
+
 	if (playlist_file_print(r, client.GetPartition(), SongLoader(client),
-				name, true))
+				name, range.start, range.end, true))
+		return CommandResult::OK;
+
+	throw PlaylistError::NoSuchList();
+}
+
+CommandResult
+handle_playlistlength(Client &client, Request args, Response &r)
+{
+	const auto name = LocateUri(UriPluginKind::PLAYLIST, args.front(),
+				    &client
+#ifdef ENABLE_DATABASE
+					   , nullptr
+#endif
+					   );
+
+	if (playlist_file_length(r, client.GetPartition(), SongLoader(client),
+				name))
 		return CommandResult::OK;
 
 	throw PlaylistError::NoSuchList();
@@ -155,6 +177,9 @@ handle_rm([[maybe_unused]] Client &client, Request args, [[maybe_unused]] Respon
 	const char *const name = args.front();
 
 	spl_delete(name);
+
+	client.GetInstance().OnPlaylistDeleted(name);
+
 	return CommandResult::OK;
 }
 

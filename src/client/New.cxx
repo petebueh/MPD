@@ -8,15 +8,18 @@
 #include "BackgroundCommand.hxx"
 #include "Partition.hxx"
 #include "Instance.hxx"
+#include "lib/fmt/SocketAddressFormatter.hxx"
 #include "net/UniqueSocketDescriptor.hxx"
 #include "net/SocketAddress.hxx"
-#include "net/ToString.hxx"
+#include "util/SpanCast.hxx"
 #include "Log.hxx"
 #include "Version.h"
 
 #include <cassert>
 
-static constexpr char GREETING[] = "OK MPD " PROTOCOL_VERSION "\n";
+using std::string_view_literals::operator""sv;
+
+static constexpr auto GREETING = "OK MPD " PROTOCOL_VERSION "\n"sv;
 
 Client::Client(EventLoop &_loop, Partition &_partition,
 	       UniqueSocketDescriptor _fd,
@@ -36,11 +39,10 @@ Client::Client(EventLoop &_loop, Partition &_partition,
 
 void
 client_new(EventLoop &loop, Partition &partition,
-	   UniqueSocketDescriptor fd, SocketAddress address, int uid,
+	   UniqueSocketDescriptor fd, SocketAddress remote_address, int uid,
 	   unsigned permission) noexcept
 {
 	static unsigned int next_client_num;
-	const auto remote = ToString(address);
 
 	assert(fd.IsDefined());
 
@@ -50,7 +52,7 @@ client_new(EventLoop &loop, Partition &partition,
 		return;
 	}
 
-	(void)fd.Write(GREETING, sizeof(GREETING) - 1);
+	(void)fd.WriteNoWait(AsBytes(GREETING));
 
 	const unsigned num = next_client_num++;
 	auto *client = new Client(loop, partition, std::move(fd), uid,
@@ -61,7 +63,7 @@ client_new(EventLoop &loop, Partition &partition,
 	partition.clients.push_back(*client);
 
 	FmtInfo(client_domain, "[{}] opened from {}",
-		num, remote);
+		num, remote_address);
 }
 
 void

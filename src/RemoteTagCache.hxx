@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright The Music Player Daemon Project
 
-#ifndef MPD_REMOTE_TAG_CACHE_HXX
-#define MPD_REMOTE_TAG_CACHE_HXX
+#pragma once
 
 #include "input/RemoteTagScanner.hxx"
 #include "tag/Tag.hxx"
@@ -52,26 +51,10 @@ class RemoteTagCache final {
 		void OnRemoteTag(Tag &&tag) noexcept override;
 		void OnRemoteTagError(std::exception_ptr e) noexcept override;
 
-		struct Hash : std::hash<std::string> {
-			using std::hash<std::string>::operator();
-
+		struct GetUri {
 			[[gnu::pure]]
-			std::size_t operator()(const Item &item) const noexcept {
-				return std::hash<std::string>::operator()(item.uri);
-			}
-		};
-
-		struct Equal {
-			[[gnu::pure]]
-			bool operator()(const Item &a,
-					const Item &b) const noexcept {
-				return a.uri == b.uri;
-			}
-
-			[[gnu::pure]]
-			bool operator()(const std::string &a,
-					const Item &b) const noexcept {
-				return a == b.uri;
+			std::string_view operator()(const Item &item) const noexcept {
+				return item.uri;
 			}
 		};
 	};
@@ -100,11 +83,13 @@ class RemoteTagCache final {
 	 */
 	ItemList invoke_list;
 
-	using KeyMap = IntrusiveHashSet<Item, 127, Item::Hash, Item::Equal,
-					IntrusiveHashSetBaseHookTraits<Item>,
-					true>;
-
-	KeyMap map;
+	IntrusiveHashSet<
+		Item, 127,
+		IntrusiveHashSetOperators<Item, Item::GetUri,
+					  std::hash<std::string_view>,
+					  std::equal_to<std::string_view>>,
+		IntrusiveHashSetBaseHookTraits<Item>,
+		IntrusiveHashSetOptions{.constant_time_size = true}> map;
 
 public:
 	RemoteTagCache(EventLoop &event_loop,
@@ -122,5 +107,3 @@ private:
 
 	void ItemResolved(Item &item) noexcept;
 };
-
-#endif

@@ -23,7 +23,7 @@
 #include "BulkEdit.hxx"
 #include "util/Exception.hxx"
 #include "util/StringAPI.hxx"
-#include "util/NumberParser.hxx"
+#include "util/CNumberParser.hxx"
 
 #include <fmt/format.h>
 
@@ -275,6 +275,9 @@ ParseSortTag(const char *s)
 {
 	if (StringIsEqualIgnoreCase(s, "Last-Modified"))
 		return TagType(SORT_TAG_LAST_MODIFIED);
+
+	if (StringIsEqualIgnoreCase(s, "Added"))
+		return TagType(SORT_TAG_ADDED);
 
 	if (StringIsEqualIgnoreCase(s, "prio"))
 		return TagType(SORT_TAG_PRIO);

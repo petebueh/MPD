@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // author: Max Kellermann <max.kellermann@gmail.com>
 
-#ifndef UNIQUE_SOCKET_DESCRIPTOR_SOCKET_HXX
-#define UNIQUE_SOCKET_DESCRIPTOR_SOCKET_HXX
+#pragma once
 
 #include "SocketDescriptor.hxx"
+
+#ifndef _WIN32
+#include "io/UniqueFileDescriptor.hxx"
+#endif
 
 #include <utility>
 
@@ -48,6 +51,12 @@ public:
 		return std::exchange(*(SocketDescriptor *)this, Undefined());
 	}
 
+#ifndef _WIN32
+	UniqueFileDescriptor MoveToFileDescriptor() && noexcept {
+		return UniqueFileDescriptor{Release().ToFileDescriptor()};
+	}
+#endif
+
 	UniqueSocketDescriptor &operator=(UniqueSocketDescriptor &&src) noexcept {
 		using std::swap;
 		swap(fd, src.fd);
@@ -90,5 +99,3 @@ public:
 	}
 #endif
 };
-
-#endif

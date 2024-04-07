@@ -118,8 +118,8 @@ static constexpr struct command commands[] = {
 	{ "listneighbors", PERMISSION_READ, 0, 0, handle_listneighbors },
 #endif
 	{ "listpartitions", PERMISSION_READ, 0, 0, handle_listpartitions },
-	{ "listplaylist", PERMISSION_READ, 1, 1, handle_listplaylist },
-	{ "listplaylistinfo", PERMISSION_READ, 1, 1, handle_listplaylistinfo },
+	{ "listplaylist", PERMISSION_READ, 1, 2, handle_listplaylist },
+	{ "listplaylistinfo", PERMISSION_READ, 1, 2, handle_listplaylistinfo },
 	{ "listplaylists", PERMISSION_READ, 0, 0, handle_listplaylists },
 	{ "load", PERMISSION_ADD, 1, 3, handle_load },
 	{ "lsinfo", PERMISSION_READ, 0, 1, handle_lsinfo },
@@ -149,6 +149,7 @@ static constexpr struct command commands[] = {
 	{ "playlistfind", PERMISSION_READ, 1, -1, handle_playlistfind },
 	{ "playlistid", PERMISSION_READ, 0, 1, handle_playlistid },
 	{ "playlistinfo", PERMISSION_READ, 0, 1, handle_playlistinfo },
+	{ "playlistlength", PERMISSION_READ, 1, 1, handle_playlistlength },
 	{ "playlistmove", PERMISSION_CONTROL, 3, 3, handle_playlistmove },
 	{ "playlistsearch", PERMISSION_READ, 1, -1, handle_playlistsearch },
 	{ "plchanges", PERMISSION_READ, 1, 2, handle_plchanges },
@@ -187,6 +188,7 @@ static constexpr struct command commands[] = {
 	{ "status", PERMISSION_READ, 0, 0, handle_status },
 #ifdef ENABLE_SQLITE
 	{ "sticker", PERMISSION_ADMIN, 3, -1, handle_sticker },
+	{ "stickernames", PERMISSION_ADMIN, 0, 0, handle_sticker_names },
 #endif
 	{ "stop", PERMISSION_PLAYER, 0, 0, handle_stop },
 	{ "subscribe", PERMISSION_READ, 1, 1, handle_subscribe },

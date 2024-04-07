@@ -4,7 +4,7 @@ if systemd_system_unit_dir == ''
   if systemd.found()
       systemd_system_unit_dir = systemd.get_variable(
         pkgconfig: 'systemdsystemunitdir',
-        pkgconfig_define: ['prefix', get_option('prefix')],
+        pkgconfig_define: ['rootprefix', get_option('prefix')],
       )
   endif
 endif
@@ -12,8 +12,10 @@ if systemd_system_unit_dir == ''
   systemd_system_unit_dir = join_paths(get_option('prefix'), 'lib', 'systemd', 'system')
 endif
 
-install_data(
-  'mpd.socket',
+configure_file(
+  input: 'mpd.socket.in',
+  output: 'mpd.socket',
+  configuration: systemd_socket_conf,
   install_dir: systemd_system_unit_dir,
 )
 

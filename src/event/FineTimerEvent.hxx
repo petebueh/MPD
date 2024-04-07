@@ -7,12 +7,9 @@
 #include "Chrono.hxx"
 #include "event/Features.h"
 #include "util/BindMethod.hxx"
+#include "util/IntrusiveTreeSet.hxx"
 
-#ifdef NO_BOOST
-#include "util/IntrusiveList.hxx"
-#else
-#include <boost/intrusive/set_hook.hpp>
-#endif
+#include <cassert>
 
 class EventLoop;
 
@@ -28,16 +25,9 @@ class EventLoop;
  * as thread-safe.
  */
 class FineTimerEvent final :
-#ifdef NO_BOOST
-	AutoUnlinkIntrusiveListHook
-#else
-	public boost::intrusive::set_base_hook<boost::intrusive::link_mode<boost::intrusive::auto_unlink>>
-#endif
+	public IntrusiveTreeSetHook<IntrusiveHookMode::AUTO_UNLINK>
 {
 	friend class TimerList;
-#ifdef NO_BOOST
-	friend struct IntrusiveListBaseHookTraits<FineTimerEvent>;
-#endif
 
 	EventLoop &loop;
 
@@ -62,9 +52,37 @@ public:
 		return due;
 	}
 
+	/**
+	 * Set the due time as an absolute time point.  This can be
+	 * done to prepare an eventual ScheduleCurrent() call.  Must
+	 * not be called while the timer is already scheduled.
+	 */
+	void SetDue(Event::TimePoint _due) noexcept {
+		assert(!IsPending());
+
+		due = _due;
+	}
+
+	/**
+	 * Set the due time as a duration relative to now.  This can
+	 * done to prepare an eventual ScheduleCurrent() call.  Must
+	 * not be called while the timer is already scheduled.
+	 */
+	void SetDue(Event::Duration d) noexcept;
+
+	/**
+	 * Was this timer scheduled?
+	 */
 	bool IsPending() const noexcept {
 		return is_linked();
 	}
+
+	/**
+	 * Schedule the timer at the due time that was already set;
+	 * either by SetDue() or by a Schedule() call that was already
+	 * canceled.
+	 */
+	void ScheduleCurrent() noexcept;
 
 	void Schedule(Event::Duration d) noexcept;
 
@@ -75,9 +93,7 @@ public:
 	void ScheduleEarlier(Event::Duration d) noexcept;
 
 	void Cancel() noexcept {
-#ifdef NO_BOOST
 		if (IsPending())
-#endif
 			unlink();
 	}
 
