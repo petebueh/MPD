@@ -367,6 +367,7 @@ Player::StartDecoder(std::unique_lock<Mutex> &lock,
 		     std::shared_ptr<MusicPipe> _pipe,
 		     bool initial_seek_essential) noexcept
 {
+	assert(!decoder_starting);
 	assert(queued || pc.command == PlayerCommand::SEEK);
 	assert(pc.next_song != nullptr);
 
@@ -622,7 +623,7 @@ Player::CheckDecoderStartup(std::unique_lock<Mutex> &lock) noexcept
 		if (!paused && !OpenOutput()) {
 			FmtError(player_domain,
 				 "problems opening audio device "
-				 "while playing \"{}\"",
+				 "while playing {:?}",
 				 dc.song->GetURI());
 			return true;
 		}
@@ -783,11 +784,6 @@ Player::ProcessCommand(std::unique_lock<Mutex> &lock) noexcept
 
 		queued = true;
 		pc.CommandFinished();
-
-		if (dc.IsIdle())
-			StartDecoder(lock, std::make_shared<MusicPipe>(),
-				     false);
-
 		break;
 
 	case PlayerCommand::PAUSE:
@@ -1069,7 +1065,7 @@ Player::SongBorder() noexcept
 	{
 		const ScopeUnlock unlock(pc.mutex);
 
-		FmtNotice(player_domain, "played \"{}\"", song->GetURI());
+		FmtNotice(player_domain, "played {:?}", song->GetURI());
 
 		ReplacePipe(dc.pipe);
 
@@ -1215,7 +1211,7 @@ Player::Run() noexcept
 	cross_fade_tag.reset();
 
 	if (song != nullptr) {
-		FmtNotice(player_domain, "played \"{}\"", song->GetURI());
+		FmtNotice(player_domain, "played {:?}", song->GetURI());
 		song.reset();
 	}
 

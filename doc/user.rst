@@ -65,7 +65,8 @@ In any case, you need:
 Each plugin usually needs a codec library, which you also need to
 install. Check the :doc:`plugins` for details about required libraries
 
-For example, the following installs a fairly complete list of build dependencies on Debian Bullseye:
+For example, the following installs a fairly complete list of build
+dependencies on Debian Bookworm:
 
 .. code-block:: none
 
@@ -83,7 +84,7 @@ For example, the following installs a fairly complete list of build dependencies
       libsamplerate0-dev libsoxr-dev \
       libbz2-dev libcdio-paranoia-dev libiso9660-dev libmms-dev \
       libzzip-dev \
-      libcurl4-gnutls-dev libyajl-dev libexpat-dev \
+      libcurl4-gnutls-dev libyajl-dev libexpat1-dev \
       libasound2-dev libao-dev libjack-jackd2-dev libopenal-dev \
       libpulse-dev libshout3-dev \
       libsndio-dev \
@@ -96,7 +97,9 @@ For example, the following installs a fairly complete list of build dependencies
       libgtest-dev \
       libicu-dev \
       libchromaprint-dev \
-      libgcrypt20-dev
+      libgcrypt20-dev \
+      libsystemd-dev \
+      libpipewire-0.3-dev
       
 
 Now configure the source tree:
@@ -685,6 +688,11 @@ On songs without ReplayGain tags, the setting
 ``replaygain_missing_preamp`` is used instead.  If this setting is not
 configured, then no ReplayGain is applied to such songs, and they will
 appear too loud.
+
+The setting ``replaygain_limit`` enables or disables ReplayGain
+limiting.  When enabled (the default), MPD will use the peak from the
+ReplayGain tags to minimize clipping; disabling it will allow clipping
+of some quiet tracks.
 
 ReplayGain is usually implemented with a software volume filter (which
 prevents `Bit-perfect playback`_).  To use a hardware mixer, set
