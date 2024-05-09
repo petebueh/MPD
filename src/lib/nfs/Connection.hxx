@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright The Music Player Daemon Project
 
-#ifndef MPD_NFS_CONNECTION_HXX
-#define MPD_NFS_CONNECTION_HXX
+#pragma once
 
 #include "Cancellable.hxx"
 #include "event/SocketEvent.hxx"
 #include "event/CoarseTimerEvent.hxx"
 #include "event/DeferEvent.hxx"
+#include "util/IntrusiveList.hxx"
 
+#include <cstdint>
 #include <string>
-#include <list>
 #include <forward_list>
 #include <exception>
 
@@ -80,11 +80,11 @@ class NfsConnection {
 	DeferEvent defer_new_lease;
 	CoarseTimerEvent mount_timeout_event;
 
-	std::string server, export_name;
+	const std::string server, export_name;
 
-	nfs_context *context;
+	nfs_context *const context;
 
-	typedef std::list<NfsLease *> LeaseList;
+	using LeaseList = IntrusiveList<NfsLease>;
 	LeaseList new_leases, active_leases;
 
 	typedef CancellableList<NfsCallback, CancellableCallback> CallbackList;
@@ -101,35 +101,39 @@ class NfsConnection {
 
 	std::exception_ptr postponed_mount_error;
 
+	enum class MountState : uint_least8_t {
+		INITIAL,
+		WAITING,
+		FINISHED,
+	} mount_state = MountState::INITIAL;
+
 #ifndef NDEBUG
 	/**
 	 * True when nfs_service() is being called.
 	 */
-	bool in_service;
+	bool in_service = false;
 
 	/**
 	 * True when OnSocketReady() is being called.  During that,
 	 * event updates are omitted.
 	 */
-	bool in_event;
+	bool in_event = false;
 
 	/**
 	 * True when DestroyContext() is being called.
 	 */
-	bool in_destroy;
+	bool in_destroy = false;
 #endif
 
-	bool mount_finished;
-
 public:
+	/**
+	 * Throws on error.
+	 */
 	[[gnu::nonnull]]
 	NfsConnection(EventLoop &_loop,
-		      const char *_server, const char *_export_name) noexcept
-		:socket_event(_loop, BIND_THIS_METHOD(OnSocketReady)),
-		 defer_new_lease(_loop, BIND_THIS_METHOD(RunDeferred)),
-		 mount_timeout_event(_loop, BIND_THIS_METHOD(OnMountTimeout)),
-		 server(_server), export_name(_export_name),
-		 context(nullptr) {}
+		      nfs_context *_context,
+		      std::string_view _server,
+		      std::string_view _export_name);
 
 	/**
 	 * Must be run from EventLoop's thread.
@@ -141,13 +145,13 @@ public:
 	}
 
 	[[gnu::pure]]
-	const char *GetServer() const noexcept {
-		return server.c_str();
+	std::string_view GetServer() const noexcept {
+		return server;
 	}
 
 	[[gnu::pure]]
-	const char *GetExportName() const noexcept {
-		return export_name.c_str();
+	std::string_view GetExportName() const noexcept {
+		return export_name;
 	}
 
 	/**
@@ -186,10 +190,10 @@ public:
 	void CancelAndClose(struct nfsfh *fh, NfsCallback &callback) noexcept;
 
 protected:
-	virtual void OnNfsConnectionError(std::exception_ptr &&e) noexcept = 0;
+	virtual void OnNfsConnectionError(std::exception_ptr e) noexcept = 0;
 
 private:
-	void DestroyContext() noexcept;
+	void PrepareDestroyContext() noexcept;
 
 	/**
 	 * Wrapper for nfs_close_async().
@@ -203,8 +207,8 @@ private:
 
 	void MountInternal();
 	void BroadcastMountSuccess() noexcept;
-	void BroadcastMountError(std::exception_ptr &&e) noexcept;
-	void BroadcastError(std::exception_ptr &&e) noexcept;
+	void BroadcastMountError(std::exception_ptr e) noexcept;
+	void BroadcastError(std::exception_ptr e) noexcept;
 
 	static void MountCallback(int status, nfs_context *nfs, void *data,
 				  void *private_data) noexcept;
@@ -225,5 +229,3 @@ private:
 	/* DeferEvent callback */
 	void RunDeferred() noexcept;
 };
-
-#endif
