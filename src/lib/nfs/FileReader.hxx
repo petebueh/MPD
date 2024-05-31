@@ -14,6 +14,10 @@
 #include <span>
 #include <string>
 
+#ifdef LIBNFS_API_2
+#include <memory>
+#endif
+
 struct nfsfh;
 struct nfs_stat_64;
 class NfsConnection;
@@ -21,7 +25,7 @@ class NfsConnection;
 /**
  * A helper class which helps with reading from a file.  It obtains a
  * connection lease (#NfsLease), opens the given file, "stats" the
- * file, and finally allos you to read its contents.
+ * file, and finally allows you to read its contents.
  *
  * To get started, derive your class from it and implement the pure
  * virtual methods, construct an instance, and call Open().
@@ -39,10 +43,9 @@ class NfsFileReader : NfsLease, NfsCallback {
 
 	State state = State::INITIAL;
 
-	std::string server, export_name;
-	const char *path;
+	std::string server, export_name, path;
 
-	NfsConnection *connection;
+	NfsConnection *connection = nullptr;
 
 	nfsfh *fh;
 
@@ -51,13 +54,22 @@ class NfsFileReader : NfsLease, NfsCallback {
 	 */
 	InjectEvent defer_open;
 
+#ifdef LIBNFS_API_2
+	std::unique_ptr<std::byte[]> read_buffer;
+#endif
+
 public:
 	NfsFileReader() noexcept;
+	explicit NfsFileReader(NfsConnection &_connection,
+			       std::string_view _path) noexcept;
 	~NfsFileReader() noexcept;
 
 	auto &GetEventLoop() const noexcept {
 		return defer_open.GetEventLoop();
 	}
+
+	[[nodiscard]] [[gnu::pure]]
+	std::string GetAbsoluteUri() const noexcept;
 
 	void Close() noexcept;
 	void DeferClose() noexcept;
@@ -126,6 +138,7 @@ private:
 
 	void OpenCallback(nfsfh *_fh) noexcept;
 	void StatCallback(const struct nfs_stat_64 *st) noexcept;
+	void ReadCallback(std::size_t nbytes, const void *data) noexcept;
 
 	/* virtual methods from NfsLease */
 	void OnNfsConnectionReady() noexcept final;

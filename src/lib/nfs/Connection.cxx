@@ -81,24 +81,41 @@ NfsConnection::CancellableCallback::Stat(nfs_context *ctx,
 
 inline void
 NfsConnection::CancellableCallback::Read(nfs_context *ctx, struct nfsfh *fh,
-					 uint64_t offset, size_t size)
+					 uint64_t offset,
+#ifdef LIBNFS_API_2
+					 std::span<std::byte> dest
+#else
+					 std::size_t size
+#endif
+	)
 {
 	assert(connection.GetEventLoop().IsInside());
 
-	int result = nfs_pread_async(ctx, fh, offset, size, Callback, this);
+	int result = nfs_pread_async(ctx, fh,
+#ifdef LIBNFS_API_2
+				     dest.data(), dest.size(),
+#endif
+				     offset,
+#ifndef LIBNFS_API_2
+				     size,
+#endif
+				     Callback, this);
 	if (result < 0)
 		throw NfsClientError(ctx, "nfs_pread_async() failed");
 }
 
 inline void
-NfsConnection::CancellableCallback::CancelAndScheduleClose(struct nfsfh *fh) noexcept
+NfsConnection::CancellableCallback::CancelAndScheduleClose(struct nfsfh *fh,
+							   DisposablePointer &&_dispose_value) noexcept
 {
 	assert(connection.GetEventLoop().IsInside());
 	assert(!open);
 	assert(close_fh == nullptr);
-	assert(fh != nullptr);
+	assert(!dispose_value);
 
 	close_fh = fh;
+	dispose_value = std::move(_dispose_value);
+
 	Cancel();
 }
 
@@ -195,6 +212,12 @@ NfsConnection::~NfsConnection() noexcept
 	assert(context != nullptr);
 
 	socket_event.ReleaseSocket();
+
+	/* cancel the timer before calling nfs_destroy_context() so
+	   MountCallback() knows the mount call is being canceled;
+	   checking status==-EINTR would be ambiguous */
+	mount_timeout_event.Cancel();
+
 	nfs_destroy_context(context);
 }
 
@@ -318,7 +341,12 @@ NfsConnection::Stat(struct nfsfh *fh, NfsCallback &callback)
 }
 
 void
-NfsConnection::Read(struct nfsfh *fh, uint64_t offset, size_t size,
+NfsConnection::Read(struct nfsfh *fh, uint64_t offset,
+#ifdef LIBNFS_API_2
+		    std::span<std::byte> dest,
+#else
+		    std::size_t size,
+#endif
 		    NfsCallback &callback)
 {
 	assert(GetEventLoop().IsInside());
@@ -326,7 +354,13 @@ NfsConnection::Read(struct nfsfh *fh, uint64_t offset, size_t size,
 
 	auto &c = callbacks.Add(callback, *this, false);
 	try {
-		c.Read(context, fh, offset, size);
+		c.Read(context, fh, offset,
+#ifdef LIBNFS_API_2
+		       dest
+#else
+		       size
+#endif
+			);
 	} catch (...) {
 		callbacks.Remove(c);
 		throw;
@@ -336,9 +370,12 @@ NfsConnection::Read(struct nfsfh *fh, uint64_t offset, size_t size,
 }
 
 void
-NfsConnection::Cancel(NfsCallback &callback) noexcept
+NfsConnection::Cancel(NfsCallback &callback,
+		      struct nfsfh *fh,
+		      DisposablePointer dispose_value) noexcept
 {
-	callbacks.Cancel(callback);
+	CancellableCallback &cancel = callbacks.Get(callback);
+	cancel.CancelAndScheduleClose(fh, std::move(dispose_value));
 }
 
 static void
@@ -365,21 +402,9 @@ NfsConnection::Close(struct nfsfh *fh) noexcept
 }
 
 void
-NfsConnection::CancelAndClose(struct nfsfh *fh, NfsCallback &callback) noexcept
-{
-	CancellableCallback &cancel = callbacks.Get(callback);
-	cancel.CancelAndScheduleClose(fh);
-}
-
-void
 NfsConnection::PrepareDestroyContext() noexcept
 {
 	assert(GetEventLoop().IsInside());
-
-#ifndef NDEBUG
-	assert(!in_destroy);
-	in_destroy = true;
-#endif
 
 	if (mount_state == MountState::WAITING) {
 		assert(mount_timeout_event.IsPending());
@@ -397,11 +422,6 @@ NfsConnection::PrepareDestroyContext() noexcept
 	callbacks.ForEach([](CancellableCallback &c){
 			c.PrepareDestroyContext();
 		});
-
-#ifndef NDEBUG
-	assert(in_destroy);
-	in_destroy = false;
-#endif
 }
 
 inline void
@@ -436,7 +456,6 @@ NfsConnection::ScheduleSocket() noexcept
 		if (!_fd.IsDefined())
 			return;
 
-		_fd.EnableCloseOnExec();
 		socket_event.Open(_fd);
 	}
 
@@ -529,19 +548,28 @@ NfsConnection::OnSocketReady(unsigned flags) noexcept
 
 inline void
 NfsConnection::MountCallback(int status, [[maybe_unused]] nfs_context *nfs,
-			     [[maybe_unused]] void *data) noexcept
+			     void *data) noexcept
 {
 	assert(GetEventLoop().IsInside());
 	assert(context == nfs);
+
+	if (!mount_timeout_event.IsPending()) {
+		/* called by nfs_destroy_context() while destructing
+		   this NfsConnection instance */
+		assert(status == -EINTR);
+		assert(mount_state == MountState::FINISHED);
+		return;
+	}
+
 	assert(mount_state == MountState::WAITING);
 
 	mount_state = MountState::FINISHED;
 
-	assert(mount_timeout_event.IsPending() || in_destroy);
 	mount_timeout_event.Cancel();
 
 	if (status < 0) {
-		auto e = NfsClientError(context, "nfs_mount_async() failed");
+		auto e = NfsClientError(status, context, data,
+					"nfs_mount_async() failed");
 		postponed_mount_error = std::make_exception_ptr(e);
 		return;
 	}
@@ -582,6 +610,11 @@ NfsConnection::BroadcastMountSuccess() noexcept
 	assert(mount_state == MountState::FINISHED);
 
 	new_leases.clear_and_dispose([this](auto *lease){
+#ifdef __clang__
+		/* suppress bogus clang-18 -Wunused-lambda-capture warning */
+		(void)this;
+#endif
+
 		active_leases.push_back(*lease);
 		lease->OnNfsConnectionReady();
 	});
@@ -593,7 +626,7 @@ NfsConnection::BroadcastMountError(std::exception_ptr e) noexcept
 	assert(GetEventLoop().IsInside());
 	assert(mount_state == MountState::FINISHED);
 
-	new_leases.clear_and_dispose([this, &e](auto *l){
+	new_leases.clear_and_dispose([&e](auto *l){
 		l->OnNfsConnectionFailed(e);
 	});
 
@@ -605,7 +638,7 @@ NfsConnection::BroadcastError(std::exception_ptr e) noexcept
 {
 	assert(GetEventLoop().IsInside());
 
-	active_leases.clear_and_dispose([this, &e](auto *l){
+	active_leases.clear_and_dispose([&e](auto *l){
 		l->OnNfsConnectionDisconnected(e);
 	});
 

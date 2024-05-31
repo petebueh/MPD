@@ -10,6 +10,8 @@
 
 #include <nfsc/libnfs.h> // for struct nfs_stat_64
 
+#include <fmt/core.h>
+
 #include <cassert>
 #include <cstring>
 #include <stdexcept>
@@ -18,14 +20,35 @@
 #include <fcntl.h>
 #include <sys/stat.h> // for S_ISREG()
 
+using std::string_view_literals::operator""sv;
+
 NfsFileReader::NfsFileReader() noexcept
 	:defer_open(nfs_get_event_loop(), BIND_THIS_METHOD(OnDeferredOpen))
 {
 }
 
+NfsFileReader::NfsFileReader(NfsConnection &_connection,
+			     std::string_view _path) noexcept
+	:state(State::DEFER),
+	 path(_path),
+	 connection(&_connection),
+	 defer_open(_connection.GetEventLoop(), BIND_THIS_METHOD(OnDeferredOpen))
+{
+	defer_open.Schedule();
+}
+
 NfsFileReader::~NfsFileReader() noexcept
 {
 	assert(state == State::INITIAL);
+}
+
+std::string
+NfsFileReader::GetAbsoluteUri() const noexcept
+{
+	return fmt::format("nfs://{}{}/{}"sv,
+			   connection != nullptr ? connection->GetServer() : server,
+			   connection != nullptr ? connection->GetExportName() : export_name,
+			   path);
 }
 
 void
@@ -56,14 +79,20 @@ NfsFileReader::CancelOrClose() noexcept
 		/* no async operation in progress: can close
 		   immediately */
 		connection->Close(fh);
-	else if (state > State::OPEN)
+	else if (state > State::OPEN) {
 		/* one async operation in progress: cancel it and
 		   defer the nfs_close_async() call */
-		connection->CancelAndClose(fh, *this);
-	else if (state > State::MOUNT)
+		DisposablePointer dispose_value{};
+
+#ifdef LIBNFS_API_2
+		dispose_value = ToDeleteArray(read_buffer.release());
+#endif
+
+		connection->Cancel(*this, fh, std::move(dispose_value));
+	} else if (state > State::MOUNT)
 		/* we don't have a file handle yet - just cancel the
 		   async operation */
-		connection->Cancel(*this);
+		connection->Cancel(*this, nullptr, {});
 
 	state = State::INITIAL;
 }
@@ -116,7 +145,15 @@ NfsFileReader::Read(uint64_t offset, size_t size)
 {
 	assert(state == State::IDLE);
 
+#ifdef LIBNFS_API_2
+	assert(!read_buffer);
+	// TOOD read into caller-provided buffer
+	read_buffer = std::make_unique<std::byte[]>(size);
+	connection->Read(fh, offset, {read_buffer.get(), size}, *this);
+#else
 	connection->Read(fh, offset, size, *this);
+#endif
+
 	state = State::READ;
 }
 
@@ -124,7 +161,14 @@ void
 NfsFileReader::CancelRead() noexcept
 {
 	if (state == State::READ) {
-		connection->Cancel(*this);
+		DisposablePointer dispose_value{};
+
+#ifdef LIBNFS_API_2
+		assert(read_buffer);
+		dispose_value = ToDeleteArray(read_buffer.release());
+#endif
+
+		connection->Cancel(*this, nullptr, std::move(dispose_value));
 		state = State::IDLE;
 	}
 }
@@ -135,7 +179,7 @@ NfsFileReader::OnNfsConnectionReady() noexcept
 	assert(state == State::MOUNT);
 
 	try {
-		connection->Open(path, O_RDONLY, *this);
+		connection->Open(path.c_str(), O_RDONLY, *this);
 	} catch (...) {
 		OnNfsFileError(std::current_exception());
 		return;
@@ -183,20 +227,11 @@ NfsFileReader::OpenCallback(nfsfh *_fh) noexcept
 }
 
 inline void
-NfsFileReader::StatCallback(const struct nfs_stat_64 *_st) noexcept
+NfsFileReader::StatCallback(const struct nfs_stat_64 *st) noexcept
 {
 	assert(connection != nullptr);
 	assert(fh != nullptr);
-	assert(_st != nullptr);
-
-#if defined(_WIN32) && !defined(_WIN64)
-	/* on 32-bit Windows, libnfs enables -D_FILE_OFFSET_BITS=64,
-	   but MPD (Meson) doesn't - to work around this mismatch, we
-	   cast explicitly to "struct stat64" */
-	const auto *st = (const struct stat64 *)_st;
-#else
-	const auto *st = _st;
-#endif
+	assert(st != nullptr);
 
 	if (!S_ISREG(st->nfs_mode)) {
 		OnNfsFileError(std::make_exception_ptr(std::runtime_error("Not a regular file")));
@@ -204,6 +239,21 @@ NfsFileReader::StatCallback(const struct nfs_stat_64 *_st) noexcept
 	}
 
 	OnNfsFileOpen(st->nfs_size);
+}
+
+inline void
+NfsFileReader::ReadCallback(std::size_t nbytes, const void *data) noexcept
+{
+#ifdef LIBNFS_API_2
+	(void)data;
+
+	assert(read_buffer);
+	const auto buffer = std::move(read_buffer);
+
+	OnNfsFileRead({buffer.get(), nbytes});
+#else
+	OnNfsFileRead({static_cast<const std::byte *>(data), nbytes});
+#endif
 }
 
 void
@@ -226,10 +276,7 @@ NfsFileReader::OnNfsCallback(unsigned status, void *data) noexcept
 		break;
 
 	case State::READ:
-		OnNfsFileRead({
-				static_cast<const std::byte *>(data),
-				static_cast<std::size_t>(status),
-			});
+		ReadCallback(static_cast<std::size_t>(status), data);
 		break;
 	}
 }
@@ -269,12 +316,13 @@ NfsFileReader::OnDeferredOpen() noexcept
 {
 	assert(state == State::DEFER);
 
-	try {
-		connection = &nfs_get_connection(server, export_name);
-	} catch (...) {
-		OnNfsFileError(std::current_exception());
-		return;
-	}
+	if (connection == nullptr)
+		try {
+			connection = &nfs_get_connection(server, export_name);
+		} catch (...) {
+			OnNfsFileError(std::current_exception());
+			return;
+		}
 
 	connection->AddLease(*this);
 	state = State::MOUNT;

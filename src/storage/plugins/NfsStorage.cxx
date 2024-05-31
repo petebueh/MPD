@@ -11,6 +11,8 @@
 #include "lib/nfs/Lease.hxx"
 #include "lib/nfs/Connection.hxx"
 #include "lib/nfs/Glue.hxx"
+#include "input/InputStream.hxx"
+#include "input/plugins/NfsInputPlugin.hxx"
 #include "fs/AllocatedPath.hxx"
 #include "thread/Mutex.hxx"
 #include "thread/Cond.hxx"
@@ -94,6 +96,8 @@ public:
 
 	[[nodiscard]] std::string_view MapToRelativeUTF8(std::string_view uri_utf8) const noexcept override;
 
+	InputStreamPtr OpenFile(std::string_view uri_utf8, Mutex &mutex) override;
+
 	/* virtual methods from NfsLease */
 	void OnNfsConnectionReady() noexcept final {
 		assert(state == State::CONNECTING);
@@ -136,7 +140,7 @@ private:
 	void SetState(State _state) noexcept {
 		assert(GetEventLoop().IsInside());
 
-		const std::scoped_lock<Mutex> protect(mutex);
+		const std::scoped_lock protect{mutex};
 		state = _state;
 		cond.notify_all();
 	}
@@ -144,7 +148,7 @@ private:
 	void SetState(State _state, std::exception_ptr &&e) noexcept {
 		assert(GetEventLoop().IsInside());
 
-		const std::scoped_lock<Mutex> protect(mutex);
+		const std::scoped_lock protect{mutex};
 		state = _state;
 		last_exception = std::move(e);
 		cond.notify_all();
@@ -168,7 +172,7 @@ private:
 	}
 
 	void WaitConnected() {
-		std::unique_lock<Mutex> lock(mutex);
+		std::unique_lock lock{mutex};
 
 		while (true) {
 			switch (state) {
@@ -244,6 +248,14 @@ std::string_view
 NfsStorage::MapToRelativeUTF8(std::string_view uri_utf8) const noexcept
 {
 	return PathTraitsUTF8::Relative(base, uri_utf8);
+}
+
+InputStreamPtr
+NfsStorage::OpenFile(std::string_view uri_utf8, Mutex &_mutex)
+{
+	WaitConnected();
+
+	return OpenNfsInputStream(*connection, uri_utf8, _mutex);
 }
 
 static void

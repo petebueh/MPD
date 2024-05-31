@@ -7,6 +7,7 @@
 #include "event/SocketEvent.hxx"
 #include "event/CoarseTimerEvent.hxx"
 #include "event/DeferEvent.hxx"
+#include "util/DisposablePointer.hxx"
 #include "util/IntrusiveList.hxx"
 
 #include <cstdint>
@@ -41,6 +42,12 @@ class NfsConnection {
 		 */
 		struct nfsfh *close_fh;
 
+		/**
+		 * An arbitrary value that will be disposed of after
+		 * cancellation completes.
+		 */
+		DisposablePointer dispose_value;
+
 	public:
 		explicit CancellableCallback(NfsCallback &_callback,
 					     NfsConnection &_connection,
@@ -55,13 +62,20 @@ class NfsConnection {
 		void Open(nfs_context *context, const char *path, int flags);
 		void Stat(nfs_context *context, struct nfsfh *fh);
 		void Read(nfs_context *context, struct nfsfh *fh,
-			  uint64_t offset, size_t size);
+			  uint64_t offset,
+#ifdef LIBNFS_API_2
+			  std::span<std::byte> dest
+#else
+			  std::size_t size
+#endif
+			);
 
 		/**
 		 * Cancel the operation and schedule a call to
 		 * nfs_close_async() with the given file handle.
 		 */
-		void CancelAndScheduleClose(struct nfsfh *fh) noexcept;
+		void CancelAndScheduleClose(struct nfsfh *fh,
+					    DisposablePointer &&_dispose_value) noexcept;
 
 		/**
 		 * Called by NfsConnection::DestroyContext() right
@@ -118,11 +132,6 @@ class NfsConnection {
 	 * event updates are omitted.
 	 */
 	bool in_event = false;
-
-	/**
-	 * True when DestroyContext() is being called.
-	 */
-	bool in_destroy = false;
 #endif
 
 public:
@@ -164,30 +173,80 @@ public:
 	void AddLease(NfsLease &lease) noexcept;
 	void RemoveLease(NfsLease &lease) noexcept;
 
+	/**
+	 * Throws on error.
+	 */
 	void Stat(const char *path, NfsCallback &callback);
+
+	/**
+	 * Throws on error.
+	 */
 	void Lstat(const char *path, NfsCallback &callback);
 
+	/**
+	 * Throws on error.
+	 */
 	void OpenDirectory(const char *path, NfsCallback &callback);
+
+	/**
+	 * Read the next entry from the specified directory.
+	 *
+	 * Unlike the other I/O methods, this method blocks (because
+	 * libnfs has no non-blocking variant of nfs_readdir()) and
+	 * does not throw an exception on error.
+	 */
 	const struct nfsdirent *ReadDirectory(struct nfsdir *dir) noexcept;
+
+	/**
+	 * Close a directory handle returned by OpenDirectory().  This
+	 * method never blocks and never fails.
+	 */
 	void CloseDirectory(struct nfsdir *dir) noexcept;
 
 	/**
-	 * Throws std::runtime_error on error.
+	 * Throws on error.
 	 */
 	void Open(const char *path, int flags, NfsCallback &callback);
 
+	/**
+	 * Throws on error.
+	 */
 	void Stat(struct nfsfh *fh, NfsCallback &callback);
 
 	/**
-	 * Throws std::runtime_error on error.
+	 * Throws on error.
 	 */
-	void Read(struct nfsfh *fh, uint64_t offset, size_t size,
+	void Read(struct nfsfh *fh, uint64_t offset,
+#ifdef LIBNFS_API_2
+		  std::span<std::byte> dest,
+#else
+		  std::size_t size,
+#endif
 		  NfsCallback &callback);
 
-	void Cancel(NfsCallback &callback) noexcept;
+	/**
+	 * Cancel the asynchronous operation associated with the
+	 * specified #NfsCallback.
+	 *
+	 * After this method returns, the caller may delete the
+	 * #NfsCallback.
+	 *
+	 * Not thread-safe.
+	 *
+	 * @param fh if not nullptr, then close this NFS file handle
+	 * after cancellation completes
+	 * @param dispose_value an arbitrary value that will be
+	 * disposed of after cancellation completes
+	 */
+	void Cancel(NfsCallback &callback,
+		    struct nfsfh *fh, DisposablePointer dispose_value) noexcept;
 
+	/**
+	 * Close the specified file handle asynchronously.
+	 *
+	 * Not thread-safe.
+	 */
 	void Close(struct nfsfh *fh) noexcept;
-	void CancelAndClose(struct nfsfh *fh, NfsCallback &callback) noexcept;
 
 protected:
 	virtual void OnNfsConnectionError(std::exception_ptr e) noexcept = 0;
