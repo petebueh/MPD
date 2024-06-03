@@ -15,6 +15,8 @@ Each line in the configuration file contains a setting name and its value, e.g.:
 
 :code:`connection_timeout "5"`
 
+Lines starting with ``#`` are treated as comments and ignored.
+
 For settings which specify a filesystem path, the tilde is expanded:
 
 :code:`music_directory "~/Music"`
@@ -113,7 +115,7 @@ follow_inside_symlinks <yes or no>
   database after changing this option. The default is "yes".
 
 zeroconf_enabled <yes or no>
-  If yes, and MPD has been compiled with support for Avahi or Bonjour, service
+  If yes, and MPD has been compiled with support for Avahi, service
   information will be published with Zeroconf. The default is yes.
 
 zeroconf_name <name>

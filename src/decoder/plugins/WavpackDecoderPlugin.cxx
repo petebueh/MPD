@@ -7,6 +7,7 @@
 #include "input/InputStream.hxx"
 #include "pcm/CheckAudioFormat.hxx"
 #include "tag/Handler.hxx"
+#include "fs/NarrowPath.hxx"
 #include "fs/Path.hxx"
 #include "lib/fmt/PathFormatter.hxx"
 #include "lib/fmt/RuntimeError.hxx"
@@ -36,10 +37,11 @@ static WavpackContext *
 WavpackOpenInput(Path path, int flags, int norm_offset)
 {
 	char error[ERRORLEN];
-	auto *wpc = WavpackOpenFileInput(path.c_str(), error,
-					 flags, norm_offset);
+	auto np = NarrowPath(path);
+	auto wpc = WavpackOpenFileInput(np, error,
+					flags, norm_offset);
 	if (wpc == nullptr)
-		throw FmtRuntimeError("failed to open WavPack file \"{}\": {}",
+		throw FmtRuntimeError("failed to open WavPack file {:?}: {}",
 				      path, error);
 
 	return wpc;
@@ -243,7 +245,7 @@ struct WavpackInput {
 			       InputStream &_is) noexcept
 		:client(_client), is(_is), last_byte(EOF) {}
 
-	int32_t ReadBytes(void *data, size_t bcount) noexcept;
+	int32_t ReadBytes(std::span<std::byte> dest) noexcept;
 
 	[[nodiscard]] InputStream::offset_type GetPos() const noexcept {
 		return is.GetOffset();
@@ -316,34 +318,32 @@ wpin(void *id) noexcept
 static int32_t
 wavpack_input_read_bytes(void *id, void *data, int32_t bcount) noexcept
 {
-	return wpin(id)->ReadBytes(data, bcount);
+	return wpin(id)->ReadBytes({reinterpret_cast<std::byte *>(data), static_cast<std::size_t>(bcount)});
 }
 
 int32_t
-WavpackInput::ReadBytes(void *data, size_t bcount) noexcept
+WavpackInput::ReadBytes(std::span<std::byte> dest) noexcept
 {
-	auto *buf = (uint8_t *)data;
 	int32_t i = 0;
 
 	if (last_byte != EOF) {
-		*buf++ = last_byte;
+		dest.front() = static_cast<std::byte>(last_byte);
+		dest = dest.subspan(1);
 		last_byte = EOF;
-		--bcount;
 		++i;
 	}
 
 	/* wavpack fails if we return a partial read, so we just wait
 	   until the buffer is full */
-	while (bcount > 0) {
-		size_t nbytes = decoder_read(client, is, buf, bcount);
+	while (!dest.empty()) {
+		size_t nbytes = decoder_read(client, is, dest);
 		if (nbytes == 0) {
 			/* EOF, error or a decoder command */
 			break;
 		}
 
 		i += nbytes;
-		bcount -= nbytes;
-		buf += nbytes;
+		dest = dest.subspan(nbytes);
 	}
 
 	return i;

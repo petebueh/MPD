@@ -127,13 +127,13 @@ sent from the client to the server::
 
 The server responds with::
 
- ACK [50@1] {play} song doesn't exist: "10240"
+ ACK [2@1] {play} Bad song index
 
 This tells us that the play command, which was the second in the list
-(the first or only command is numbered 0), failed with error 50.  The
-number 50 translates to ``ACK_ERROR_NO_EXIST`` -- the song doesn't
-exist.  This is reiterated by the message text which also tells us
-which song doesn't exist.
+(the first or only command is numbered 0), failed with error 2.  The
+number 2 translates to ``ACK_ERROR_ARG`` -- the argument is invalid
+since such song position does not exist.  This is reiterated by the
+message text which also tells us that the song index is incorrect.
 
 .. _command_lists:
 
@@ -338,7 +338,7 @@ may contain :ref:`song tags <tags>` and other metadata, specifically:
 - ``duration``: the duration of the song in
   seconds; may contain a fractional part.
 
-- ``time``: like ``duration``,
+- ``Time``: like ``duration``,
   but as integer value.  This is deprecated and is only here
   for compatibility with older clients.  Do not use.
 
@@ -447,7 +447,8 @@ Querying :program:`MPD`'s status
     - ``partition``: a partition was added, removed or changed
     - ``sticker``: the sticker database has been modified.
     - ``subscription``: a client has subscribed or unsubscribed to a channel
-    - ``message``: a message was received on a channel this client is subscribed to; this event is only emitted when the queue is empty
+    - ``message``: a message was received on a channel this client is subscribed to;
+      this event is only emitted when the client's message queue is empty
     - ``neighbor``: a neighbor was found or lost
     - ``mount``: the mount list has changed
 
@@ -622,7 +623,6 @@ Playback options
 
 :command:`volume {CHANGE}`
     Changes volume by amount ``CHANGE``.
-    Deprecated, use :ref:`setvol <command_setvol>` instead.
 
 Controlling playback
 ====================
@@ -944,15 +944,17 @@ remote playlists (absolute URI with a supported scheme).
 
 .. _command_listplaylist:
 
-:command:`listplaylist {NAME}`
+:command:`listplaylist {NAME} [{START:END}]`
     Lists the songs in the playlist.  Playlist plugins are
-    supported.
+    supported. A range may be specified to list
+    only a part of the playlist. [#since_0_24]_
 
 .. _command_listplaylistinfo:
 
-:command:`listplaylistinfo {NAME}`
+:command:`listplaylistinfo {NAME} [{START:END}]`
     Lists the songs with metadata in the playlist.  Playlist
-    plugins are supported.
+    plugins are supported. A range may be specified to list
+    only a part of the playlist. [#since_0_24]_
 
 .. _command_listplaylists:
 
@@ -1000,6 +1002,19 @@ remote playlists (absolute URI with a supported scheme).
     playlist `NAME.m3u`.
 
     The second parameter can be a range. [#since_0_23_3]_
+
+.. _command_playlistlength:
+
+:command:`playlistlength {NAME}`
+    Count the number of songs and their total playtime (seconds) in the
+    playlist.
+
+    Example::
+
+     playlistlength example
+     songs: 10
+     playtime: 8192
+     OK
 
 .. _command_playlistmove:
 
@@ -1470,19 +1485,21 @@ the database for songs).
 
 .. _command_sticker_find:
 
-:command:`sticker find {TYPE} {URI} {NAME}`
+:command:`sticker find {TYPE} {URI} {NAME} [sort {SORTTYPE}] [window {START:END}]`
     Searches the sticker database for stickers with the
     specified name, below the specified directory (URI).
     For each matching song, it prints the URI and that one
     sticker's value.
 
+    ``sort`` sorts the result by "``uri``","``value`` or "``value_int``" (casts the sticker value to an integer). [#since_0_24]_
+
 .. _command_sticker_find_value:
 
-:command:`sticker find {TYPE} {URI} {NAME} = {VALUE}`
+:command:`sticker find {TYPE} {URI} {NAME} = {VALUE} [sort {SORTTYPE}] [window {START:END}]`
     Searches for stickers with the given value.
 
     Other supported operators are:
-    "``<``", "``>``"
+    "``<``", "``>``", "``contains``", "``starts_with``" for strings and "``eq``", "``lt``", "``gt``" to cast the value to an integer.
 
 Examples:
 
@@ -1749,7 +1766,8 @@ Client to client
 Clients can communicate with each others over "channels".  A
 channel is created by a client subscribing to it.  More than
 one client can be subscribed to a channel at a time; all of
-them will receive the messages which get sent to it.
+them will receive the messages which get sent to it.  A client
+can be subscribed to up to 16 channels simultaneously.
 
 Each time a client subscribes or unsubscribes, the global idle
 event ``subscription`` is generated.  In

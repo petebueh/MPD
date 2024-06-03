@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // author: Max Kellermann <max.kellermann@gmail.com>
 
-#ifndef STATIC_SOCKET_ADDRESS_HXX
-#define STATIC_SOCKET_ADDRESS_HXX
+#pragma once
 
 #include "SocketAddress.hxx" // IWYU pragma: export
 #include "Features.hxx"
 
 #include <cassert>
+
+#ifdef HAVE_UN
 #include <string_view>
+#endif
 
 /**
  * An OO wrapper for struct sockaddr_storage.
@@ -24,7 +26,7 @@ private:
 	struct sockaddr_storage address;
 
 public:
-	StaticSocketAddress() = default;
+	constexpr StaticSocketAddress() noexcept = default;
 
 	explicit StaticSocketAddress(SocketAddress src) noexcept {
 		*this = src;
@@ -61,11 +63,11 @@ public:
 		return sizeof(address);
 	}
 
-	size_type GetSize() const noexcept {
+	constexpr size_type GetSize() const noexcept {
 		return size;
 	}
 
-	void SetSize(size_type _size) noexcept {
+	constexpr void SetSize(size_type _size) noexcept {
 		assert(_size > 0);
 		assert(size_t(_size) <= sizeof(address));
 
@@ -75,21 +77,25 @@ public:
 	/**
 	 * Set the size to the maximum value for this class.
 	 */
-	void SetMaxSize() {
+	constexpr void SetMaxSize() {
 		SetSize(GetCapacity());
 	}
 
-	int GetFamily() const noexcept {
+	constexpr int GetFamily() const noexcept {
 		return address.ss_family;
 	}
 
-	bool IsDefined() const noexcept {
+	constexpr bool IsDefined() const noexcept {
 		return GetFamily() != AF_UNSPEC;
 	}
 
-	void Clear() noexcept {
+	constexpr void Clear() noexcept {
 		size = sizeof(address.ss_family);
 		address.ss_family = AF_UNSPEC;
+	}
+
+	constexpr bool IsInet() const noexcept {
+		return GetFamily() == AF_INET || GetFamily() == AF_INET6;
 	}
 
 #ifdef HAVE_UN
@@ -97,7 +103,17 @@ public:
 	 * @see SocketAddress::GetLocalRaw()
 	 */
 	[[gnu::pure]]
-	std::string_view GetLocalRaw() const noexcept;
+	std::string_view GetLocalRaw() const noexcept {
+		return static_cast<const SocketAddress>(*this).GetLocalRaw();
+	}
+
+	/**
+	 * @see SocketAddress::GetLocalPath()
+	 */
+	[[nodiscard]] [[gnu::pure]]
+	const char *GetLocalPath() const noexcept {
+		return static_cast<const SocketAddress>(*this).GetLocalPath();
+	}
 #endif
 
 #ifdef HAVE_TCP
@@ -130,5 +146,3 @@ public:
 		return !(*this == other);
 	}
 };
-
-#endif

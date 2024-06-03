@@ -38,7 +38,7 @@ public:
 							      ValidateUri(uri).c_str(),
 							      name);
 		if (value.empty()) {
-			response.FmtError(ACK_ERROR_NO_EXIST, "no such sticker: \"{}\"", name);
+			response.FmtError(ACK_ERROR_NO_EXIST, "no such sticker: {:?}", name);
 			return CommandResult::ERROR;
 		}
 
@@ -63,7 +63,7 @@ public:
 			   ? sticker_database.Delete(sticker_type, uri)
 			   : sticker_database.DeleteValue(sticker_type, uri, name);
 		if (!ret) {
-			response.FmtError(ACK_ERROR_NO_EXIST, "no such sticker: \"{}\"", name);
+			response.FmtError(ACK_ERROR_NO_EXIST, "no such sticker: {:?}", name);
 			return CommandResult::ERROR;
 		}
 
@@ -78,7 +78,8 @@ public:
 		return CommandResult::OK;
 	}
 
-	virtual CommandResult Find(const char *uri, const char *name, StickerOperator op, const char *value) {
+	virtual CommandResult Find(const char *uri, const char *name, StickerOperator op, const char *value,
+			const char *sort, bool descending, RangeArg window) {
 		auto data = CallbackContext{
 			.name = name,
 			.sticker_type = sticker_type,
@@ -97,6 +98,7 @@ public:
 				      uri,
 				      name,
 				      op, value,
+					  sort, descending, window,
 				      callback, &data);
 
 		return CommandResult::OK;
@@ -172,7 +174,8 @@ public:
 			database.ReturnSong(song);
 	}
 
-	CommandResult Find(const char *uri, const char *name, StickerOperator op, const char *value) override {
+	CommandResult Find(const char *uri, const char *name, StickerOperator op, const char *value,
+			const char *sort, bool descending, RangeArg window) override {
 		struct sticker_song_find_data data = {
 			response,
 			name,
@@ -180,6 +183,7 @@ public:
 
 		sticker_song_find(sticker_database, database, uri, data.name,
 				  op, value,
+				  sort, descending, window,
 				  sticker_song_find_print_cb, &data);
 
 		return CommandResult::OK;
@@ -243,13 +247,13 @@ public:
 protected:
 	std::string ValidateUri(const char *uri) override {
 		if (tag_type == TAG_NUM_OF_ITEM_TYPES)
-			throw std::invalid_argument(fmt::format("no such tag: \"{}\"", sticker_type));
+			throw std::invalid_argument(fmt::format("no such tag: {:?}", sticker_type));
 
 		if (!sticker_allowed_tags.Test(tag_type))
-			throw std::invalid_argument(fmt::format("unsupported tag: \"{}\"", sticker_type));
+			throw std::invalid_argument(fmt::format("unsupported tag: {:?}", sticker_type));
 
 		if (!TagExists(database, tag_type, uri))
-			throw std::invalid_argument(fmt::format("no such {}: \"{}\"", sticker_type, uri));
+			throw std::invalid_argument(fmt::format("no such {}: {:?}", sticker_type, uri));
 
 		return {uri};
 	}
@@ -279,7 +283,7 @@ protected:
 		auto normalized = filter.ToExpression();
 
 		if (!FilterMatches(database, filter))
-			throw std::invalid_argument(fmt::format("no matches found: \"{}\"", normalized));
+			throw std::invalid_argument(fmt::format("no matches found: {:?}", normalized));
 
 		return normalized;
 	}
@@ -302,7 +306,7 @@ private:
 
 		const ScopeDatabaseLock protect;
 		if (!playlists.exists(uri))
-			throw std::invalid_argument(fmt::format("no such playlist: \"{}\"", uri));
+			throw std::invalid_argument(fmt::format("no such playlist: {:?}", uri));
 
 		return {uri};
 	}
@@ -365,7 +369,7 @@ handle_sticker(Client &client, Request args, Response &r)
 		handler = std::make_unique<TagHandler>(r, db, sticker_database, tag_type);
 
 	else {
-		r.FmtError(ACK_ERROR_ARG, "unknown sticker domain \"{}\"", sticker_type);
+		r.FmtError(ACK_ERROR_ARG, "unknown sticker domain {:?}", sticker_type);
 		return CommandResult::ERROR;
 	}
 
@@ -386,7 +390,37 @@ handle_sticker(Client &client, Request args, Response &r)
 		return handler->Delete(uri, sticker_name);
 
 	/* find */
-	if ((args.size() == 4 || args.size() == 6) && StringIsEqual(cmd, "find")) {
+	if (args.size() >= 4 && StringIsEqual(cmd, "find")) {
+		RangeArg window = RangeArg::All();
+		if (args.size() >= 6 && StringIsEqual(args[args.size() - 2], "window")) {
+			window = args.ParseRange(args.size() - 1);
+			args.pop_back();
+			args.pop_back();
+		}
+
+		auto sort = "";
+		bool descending = false;
+		if (args.size() >= 6 && StringIsEqual(args[args.size() - 2], "sort")) {
+			const char *s = args.back();
+			if (*s == '-') {
+				descending = true;
+				++s;
+			}
+			if (StringIsEqual(s, "uri") ||
+				StringIsEqual(s, "value") ||
+				StringIsEqual(s, "value_int")
+			   ) {
+				sort = s;
+			}
+			else {
+				r.FmtError(ACK_ERROR_ARG, "Unknown sort tag {:?}", s);
+				return CommandResult::ERROR;
+			}
+
+			args.pop_back();
+			args.pop_back();
+		}
+
 		bool has_op = args.size() > 4;
 		auto value = has_op ? args[5] : nullptr;
 		StickerOperator op = StickerOperator::EXISTS;
@@ -399,12 +433,22 @@ handle_sticker(Client &client, Request args, Response &r)
 				op = StickerOperator::LESS_THAN;
 			else if (StringIsEqual(op_s, ">"))
 				op = StickerOperator::GREATER_THAN;
+			else if (StringIsEqual(op_s, "eq"))
+				op = StickerOperator::EQUALS_INT;
+			else if (StringIsEqual(op_s, "lt"))
+				op = StickerOperator::LESS_THAN_INT;
+			else if (StringIsEqual(op_s, "gt"))
+				op = StickerOperator::GREATER_THAN_INT;
+			else if (StringIsEqual(op_s, "contains"))
+				op = StickerOperator::CONTAINS;
+			else if (StringIsEqual(op_s, "starts_with"))
+				op = StickerOperator::STARTS_WITH;
 			else {
-				r.FmtError(ACK_ERROR_ARG, "bad operator \"{}\"", op_s);
+				r.FmtError(ACK_ERROR_ARG, "bad operator {:?}", op_s);
 				return CommandResult::ERROR;
 			}
 		}
-		return handler->Find(uri, sticker_name, op, value);
+		return handler->Find(uri, sticker_name, op, value, sort, descending, window);
 	}
 
 	r.Error(ACK_ERROR_ARG, "bad request");

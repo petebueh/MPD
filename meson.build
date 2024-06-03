@@ -10,6 +10,8 @@ project(
     'build.cpp_std=c++2a',
     'warning_level=3',
 
+    'fmt:cpp_std=c++2a',
+
     # If we build those libraries as Meson subproject, they shall be
     # linked statically into the MPD executable.
     'curl:default_library=static',
@@ -83,7 +85,7 @@ project(
     'libmpdclient:documentation=false',
     'libmpdclient:test=false',
     'openssl:build_cli=false',
-    'openssl:asm=disabled', # work around "call to undeclared function "asm" on Android
+    'openssl:asm=disabled',
     'opus:docs=disabled',
     'opus:extra-programs=disabled',
     'opus:tests=disabled',
@@ -141,6 +143,9 @@ test_common_flags = [
 
   # suppress bogus GCC12 warnings in libfmt headers
   '-Wno-stringop-overflow',
+
+  # libfmt causes this warning due to -ffast-math
+  '-Wno-nan-infinity-disabled',
 ]
 
 test_global_cxxflags = test_global_common_flags + [
@@ -262,6 +267,10 @@ if is_windows
 endif
 
 if is_android
+  # With ndk27 libcpp doesn't seem to have a rune table defined for the 
+  # localization module, tell it to use the one it ships with
+  common_cppflags += ['-D_LIBCPP_PROVIDES_DEFAULT_RUNE_TABLE']
+
   subdir('android')
 endif
 
@@ -387,6 +396,7 @@ sources = [
   'src/PlaylistError.cxx',
   'src/PlaylistPrint.cxx',
   'src/PlaylistSave.cxx',
+  'src/playlist/Length.cxx',
   'src/playlist/PlaylistStream.cxx',
   'src/playlist/PlaylistMapper.cxx',
   'src/playlist/PlaylistAny.cxx',
@@ -466,8 +476,6 @@ subdir('src/thread')
 subdir('src/net')
 subdir('src/event')
 subdir('src/win32')
-
-subdir('src/apple')
 
 subdir('src/fs/glue')
 
@@ -587,9 +595,13 @@ if is_android
     declare_dependency(sources: [bridge_header]),
     java_dep,
   ]
+
+  android_abi = get_option('android_abi')
+  install_dir = meson.current_source_dir() / 'android/app/src/main/jnilibs' / android_abi
 else
   target_type = 'executable'
   target_name = 'mpd'
+  install_dir = ''
 endif
 
 mpd = build_target(
@@ -627,12 +639,9 @@ mpd = build_target(
   ],
   link_args: link_args,
   build_by_default: not get_option('fuzzer'),
-  install: not is_android
+  install : true,
+  install_dir: install_dir
 )
-
-if is_android
-  subdir('android/apk')
-endif
 
 configure_file(output: 'config.h', configuration: conf)
 
@@ -640,15 +649,17 @@ if systemd_dep.found()
   subdir('systemd')
 endif
 
-install_data(
-  'mpd.svg',
-  install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', 'scalable', 'apps'),
-)
+if not is_android
+  install_data(
+    'mpd.svg',
+    install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', 'scalable', 'apps'),
+  )
 
-install_data(
-  'AUTHORS', 'COPYING', 'NEWS', 'README.md',
-  install_dir: join_paths(get_option('datadir'), 'doc', meson.project_name()),
-)
+  install_data(
+    'AUTHORS', 'COPYING', 'NEWS', 'README.md',
+    install_dir: join_paths(get_option('datadir'), 'doc', meson.project_name()),
+  )
+endif
 
 subdir('doc')
 

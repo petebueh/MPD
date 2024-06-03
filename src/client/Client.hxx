@@ -248,7 +248,7 @@ public:
 
 #ifdef ENABLE_DATABASE
 	const Database *GetDatabase() const noexcept override;
-	const Storage *GetStorage() const noexcept override;
+	Storage *GetStorage() const noexcept override;
 #endif // ENABLE_DATABASE
 
 private:
@@ -258,7 +258,7 @@ private:
 	CommandResult ProcessLine(char *line) noexcept;
 
 	/* virtual methods from class BufferedSocket */
-	InputResult OnSocketInput(void *data, size_t length) noexcept override;
+	InputResult OnSocketInput(std::span<std::byte> src) noexcept override;
 	void OnSocketError(std::exception_ptr ep) noexcept override;
 	void OnSocketClosed() noexcept override;
 

@@ -1,4 +1,5 @@
 gtest_dep = dependency('gtest', main: true,
+                       include_type: 'system',
                        fallback: ['gtest', 'gtest_main_dep'])
 
 subdir('util')
@@ -213,16 +214,20 @@ if enable_database
   executable(
     'run_storage',
     'run_storage.cxx',
+    '../src/TagSave.cxx',
     include_directories: inc,
     dependencies: [
       event_dep,
       storage_glue_dep,
+      cmdline_dep,
     ],
   )
 
   executable(
     'DumpDatabase',
     'DumpDatabase.cxx',
+    '../src/db/Configured.cxx',
+    '../src/db/DatabaseGlue.cxx',
     '../src/db/Registry.cxx',
     '../src/db/Selection.cxx',
     '../src/db/PlaylistVector.cxx',

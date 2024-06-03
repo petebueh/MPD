@@ -9,6 +9,7 @@
 #include <curl/curl.h>
 
 #include <cstddef>
+#include <span>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
@@ -64,8 +65,13 @@ public:
 	}
 
 	template<typename T>
+	CURLcode TrySetOption(CURLoption option, T value) noexcept {
+		return curl_easy_setopt(handle, option, value);
+	}
+
+	template<typename T>
 	void SetOption(CURLoption option, T value) {
-		CURLcode code = curl_easy_setopt(handle, option, value);
+		CURLcode code = TrySetOption(option, value);
 		if (code != CURLE_OK)
 			throw Curl::MakeError(code, "Failed to set option");
 	}
@@ -174,6 +180,10 @@ public:
 	void SetRequestBody(const void *data, size_t size) {
 		SetOption(CURLOPT_POSTFIELDS, data);
 		SetOption(CURLOPT_POSTFIELDSIZE, (long)size);
+	}
+
+	void SetRequestBody(std::span<const std::byte> s) {
+		SetRequestBody(s.data(), s.size());
 	}
 
 	void SetRequestBody(std::string_view s) {

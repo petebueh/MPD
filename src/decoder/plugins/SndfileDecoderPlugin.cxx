@@ -30,7 +30,8 @@ struct SndfileInputStream {
 	size_t Read(void *buffer, size_t size) {
 		/* libsndfile chokes on partial reads; therefore
 		   always force full reads */
-		return decoder_read_much(client, is, buffer, size);
+		return decoder_read_much(client, is,
+					 {reinterpret_cast<std::byte *>(buffer), size});
 	}
 };
 
@@ -212,7 +213,7 @@ sndfile_stream_decode(DecoderClient &client, InputStream &is)
 			break;
 
 		cmd = client.SubmitAudio(is,
-					 std::span{buffer, num_frames * frame_size},
+					 std::span{buffer, static_cast<size_t>(num_frames) * frame_size},
 					 0);
 		if (cmd == DecoderCommand::SEEK) {
 			sf_count_t c = client.GetSeekFrame();

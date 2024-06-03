@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // author: Max Kellermann <max.kellermann@gmail.com>
 
-#ifndef ALLOCATED_SOCKET_ADDRESS_HXX
-#define ALLOCATED_SOCKET_ADDRESS_HXX
+#pragma once
 
 #include "SocketAddress.hxx" // IWYU pragma: export
 #include "Features.hxx"
@@ -117,12 +116,18 @@ public:
 		size = 0;
 	}
 
+	bool IsInet() const noexcept {
+		return GetFamily() == AF_INET || GetFamily() == AF_INET6;
+	}
+
 #ifdef HAVE_UN
 	/**
 	 * @see SocketAddress::GetLocalRaw()
 	 */
 	[[gnu::pure]]
-	std::string_view GetLocalRaw() const noexcept;
+	std::string_view GetLocalRaw() const noexcept {
+		return static_cast<const SocketAddress>(*this).GetLocalRaw();
+	}
 
 	/**
 	 * @see SocketAddress::GetLocalPath()
@@ -138,6 +143,7 @@ public:
 	 * address.
 	 */
 	void SetLocal(const char *path) noexcept;
+	void SetLocal(std::string_view path) noexcept;
 #endif
 
 #ifdef HAVE_TCP
@@ -191,5 +197,3 @@ public:
 private:
 	void SetSize(size_type new_size) noexcept;
 };
-
-#endif

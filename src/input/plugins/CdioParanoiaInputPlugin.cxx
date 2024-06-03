@@ -84,7 +84,7 @@ class CdioParanoiaInputStream final : public InputStream {
 	/* virtual methods from InputStream */
 	[[nodiscard]] bool IsEOF() const noexcept override;
 	size_t Read(std::unique_lock<Mutex> &lock,
-		    void *ptr, size_t size) override;
+		    std::span<std::byte> dest) override;
 	void Seek(std::unique_lock<Mutex> &lock, offset_type offset) override;
 };
 
@@ -214,16 +214,20 @@ input_cdio_open(const char *uri,
 	}
 
 	cdio_cddap_verbose_set(drv, CDDA_MESSAGE_FORGETIT, CDDA_MESSAGE_FORGETIT);
-	if (speed > 0) {
-		FmtDebug(cdio_domain, "Attempting to set CD speed to {}x",
-			 speed);
-		cdio_cddap_speed_set(drv,speed);
-	}
 
 	if (0 != cdio_cddap_open(drv)) {
 		cdio_cddap_close_no_free_cdio(drv);
 		cdio_destroy(cdio);
 		throw std::runtime_error("Unable to open disc.");
+	}
+
+	if (speed > 0) {
+		FmtDebug(cdio_domain, "Attempting to set CD speed to {}x",
+			 speed);
+		/* Negative value indicate error (e.g. -405: not supported) */
+		if (cdio_cddap_speed_set(drv,speed) < 0)
+			FmtDebug(cdio_domain, "Failed to set CD speed to {}x",
+				 speed);
 	}
 
 	bool reverse_endian;
@@ -253,12 +257,22 @@ input_cdio_open(const char *uri,
 
 	lsn_t lsn_from, lsn_to;
 	if (parsed_uri.track >= 0) {
-		lsn_from = cdio_get_track_lsn(cdio, parsed_uri.track);
-		lsn_to = cdio_get_track_last_lsn(cdio, parsed_uri.track);
+		lsn_from = cdio_cddap_track_firstsector(drv, parsed_uri.track);
+		lsn_to = cdio_cddap_track_lastsector(drv, parsed_uri.track);
 	} else {
-		lsn_from = 0;
-		lsn_to = cdio_get_disc_last_lsn(cdio);
+		lsn_from = cdio_cddap_disc_firstsector(drv);
+		lsn_to = cdio_cddap_disc_lastsector(drv);
 	}
+
+	/* LSNs < 0 indicate errors (e.g. -401: Invaid track, -402: no pregap) */
+	if(lsn_from < 0 || lsn_to < 0)
+		throw FmtRuntimeError("Error {} on track {}",
+				      lsn_from < 0 ? lsn_from : lsn_to, parsed_uri.track);
+
+	/* Only check for audio track if not pregap or whole CD */
+	if (!cdio_cddap_track_audiop(drv, parsed_uri.track) && parsed_uri.track > 0)
+		throw FmtRuntimeError("No audio track: {}",
+				      parsed_uri.track);
 
 	return std::make_unique<CdioParanoiaInputStream>(uri, mutex,
 							 drv, cdio,
@@ -291,7 +305,7 @@ CdioParanoiaInputStream::Seek(std::unique_lock<Mutex> &,
 
 size_t
 CdioParanoiaInputStream::Read(std::unique_lock<Mutex> &,
-			      void *ptr, size_t length)
+			      std::span<std::byte> dest)
 {
 	/* end of track ? */
 	if (IsEOF())
@@ -328,10 +342,10 @@ CdioParanoiaInputStream::Read(std::unique_lock<Mutex> &,
 	}
 
 	const size_t maxwrite = CDIO_CD_FRAMESIZE_RAW - diff;  //# of bytes pending in current buffer
-	const std::size_t nbytes = std::min(length, maxwrite);
+	const std::size_t nbytes = std::min(dest.size(), maxwrite);
 
 	//skip diff bytes from this lsn
-	memcpy(ptr, ((const char *)rbuf) + diff, nbytes);
+	memcpy(dest.data(), ((const char *)rbuf) + diff, nbytes);
 
 	//update offset
 	offset += nbytes;
