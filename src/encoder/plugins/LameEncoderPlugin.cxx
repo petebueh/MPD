@@ -5,7 +5,7 @@
 #include "../EncoderAPI.hxx"
 #include "pcm/AudioFormat.hxx"
 #include "lib/fmt/RuntimeError.hxx"
-#include "util/NumberParser.hxx"
+#include "util/CNumberParser.hxx"
 #include "util/ReusableArray.hxx"
 #include "util/SpanCast.hxx"
 
@@ -63,7 +63,7 @@ PreparedLameEncoder::PreparedLameEncoder(const ConfigBlock &block)
 		quality = float(ParseDouble(value, &endptr));
 
 		if (*endptr != '\0' || quality < -1.0f || quality > 10.0f)
-			throw FmtRuntimeError("quality \"{}\" is not a number in the "
+			throw FmtRuntimeError("quality {:?} is not a number in the "
 					      "range -1 to 10",
 					      value);
 

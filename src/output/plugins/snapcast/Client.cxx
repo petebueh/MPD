@@ -40,7 +40,7 @@ SnapcastClient::Close() noexcept
 void
 SnapcastClient::LockClose() noexcept
 {
-	const std::scoped_lock<Mutex> protect(output.mutex);
+	const std::scoped_lock protect{output.mutex};
 	Close();
 }
 
@@ -57,7 +57,7 @@ SnapcastClient::Push(SnapcastChunkPtr chunk) noexcept
 SnapcastChunkPtr
 SnapcastClient::LockPopQueue() noexcept
 {
-	const std::scoped_lock<Mutex> protect(output.mutex);
+	const std::scoped_lock protect{output.mutex};
 	if (chunks.empty())
 		return nullptr;
 
@@ -245,12 +245,12 @@ SnapcastClient::SendStreamTags(std::span<const std::byte> payload) noexcept
 }
 
 BufferedSocket::InputResult
-SnapcastClient::OnSocketInput(void *data, size_t length) noexcept
+SnapcastClient::OnSocketInput(std::span<std::byte> src) noexcept
 {
-	auto &base = *(SnapcastBase *)data;
+	auto &base = *(SnapcastBase *)src.data();
 
-	if (length < sizeof(base) ||
-	    length < sizeof(base) + base.size)
+	if (src.size() < sizeof(base) ||
+	    src.size() < sizeof(base) + base.size)
 		return InputResult::MORE;
 
 	base.received = ToSnapcastTimestamp(GetEventLoop().SteadyNow());

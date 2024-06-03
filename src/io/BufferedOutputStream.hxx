@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // author: Max Kellermann <max.kellermann@gmail.com>
 
-#ifndef BUFFERED_OUTPUT_STREAM_HXX
-#define BUFFERED_OUTPUT_STREAM_HXX
+#pragma once
 
 #include "util/DynamicFifoBuffer.hxx"
 #include "util/SpanCast.hxx"
 
 #include <fmt/core.h>
-#if FMT_VERSION >= 80000 && FMT_VERSION < 90000
-#include <fmt/format.h>
-#endif
 
 #include <cstddef>
 #include <string_view>
@@ -72,14 +68,8 @@ public:
 
 	template<typename S, typename... Args>
 	void Fmt(const S &format_str, Args&&... args) {
-#if FMT_VERSION >= 90000
 		VFmt(format_str,
 		     fmt::make_format_args(args...));
-#else
-		VFmt(fmt::to_string_view(format_str),
-		     fmt::make_args_checked<Args...>(format_str,
-						     args...));
-#endif
 	}
 
 #ifdef _UNICODE
@@ -130,5 +120,3 @@ WithBufferedOutputStream(OutputStream &os, F &&f)
 	f(bos);
 	bos.Flush();
 }
-
-#endif

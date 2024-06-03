@@ -40,11 +40,11 @@
 #include <string.h>
 
 constinit const struct DecoderPlugin *const decoder_plugins[] = {
-#ifdef ENABLE_MAD
-	&mad_decoder_plugin,
-#endif
 #ifdef ENABLE_MPG123
 	&mpg123_decoder_plugin,
+#endif
+#ifdef ENABLE_MAD
+	&mad_decoder_plugin,
 #endif
 #ifdef ENABLE_VORBIS_DECODER
 	&vorbis_decoder_plugin,
@@ -145,10 +145,10 @@ decoder_plugin_init_all(const ConfigData &config)
 				decoder_plugins_enabled[i] = true;
 		} catch (const PluginUnavailable &e) {
 			FmtError(decoder_domain,
-				 "Decoder plugin '{}' is unavailable: {}",
+				 "Decoder plugin {:?} is unavailable: {}",
 				 plugin.name, std::current_exception());
 		} catch (...) {
-			std::throw_with_nested(FmtRuntimeError("Failed to initialize decoder plugin '{}'",
+			std::throw_with_nested(FmtRuntimeError("Failed to initialize decoder plugin {:?}",
 							       plugin.name));
 		}
 	}

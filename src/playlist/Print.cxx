@@ -9,23 +9,36 @@
 #include "SongEnumerator.hxx"
 #include "SongPrint.hxx"
 #include "song/DetachedSong.hxx"
+#include "input/Error.hxx"
 #include "fs/Traits.hxx"
 #include "thread/Mutex.hxx"
 #include "Partition.hxx"
 #include "Instance.hxx"
+#include "PlaylistError.hxx"
 
 static void
 playlist_provider_print(Response &r,
 			const SongLoader &loader,
 			const char *uri,
-			SongEnumerator &e, bool detail) noexcept
+			SongEnumerator &e,
+			unsigned start_index,
+			unsigned end_index,
+			bool detail) noexcept
 {
 	const auto base_uri = uri != nullptr
 		? PathTraitsUTF8::GetParent(uri)
 		: ".";
 
 	std::unique_ptr<DetachedSong> song;
-	while ((song = e.NextSong()) != nullptr) {
+
+	for (unsigned i = 0;
+	     i < end_index && (song = e.NextSong()) != nullptr;
+	     ++i) {
+		if (i < start_index) {
+			/* skip songs before the start index */
+			continue;
+		}
+
 		if (playlist_check_translate_song(*song, base_uri,
 						  loader) &&
 		    detail)
@@ -37,11 +50,14 @@ playlist_provider_print(Response &r,
 	}
 }
 
-bool
+void
 playlist_file_print(Response &r, Partition &partition,
 		    const SongLoader &loader,
-		    const LocatedUri &uri, bool detail)
-{
+		    const LocatedUri &uri,
+		    unsigned start_index,
+		    unsigned end_index,
+		    bool detail)
+try {
 	Mutex mutex;
 
 #ifndef ENABLE_DATABASE
@@ -54,8 +70,13 @@ playlist_file_print(Response &r, Partition &partition,
 #endif
 					  mutex);
 	if (playlist == nullptr)
-		return false;
+		throw PlaylistError::NoSuchList();
 
-	playlist_provider_print(r, loader, uri.canonical_uri, *playlist, detail);
-	return true;
+	playlist_provider_print(r, loader, uri.canonical_uri, *playlist,
+				start_index, end_index, detail);
+} catch (...) {
+	if (IsFileNotFound(std::current_exception()))
+		throw PlaylistError::NoSuchList();
+
+	throw;
 }

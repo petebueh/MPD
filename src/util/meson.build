@@ -3,7 +3,6 @@ util = static_library(
   'Exception.cxx',
   'UTF8.cxx',
   'MimeType.cxx',
-  'NumberParser.cxx',
   'TruncateString.cxx',
   'StringStrip.cxx',
   'StringUtil.cxx',
@@ -24,7 +23,6 @@ util = static_library(
   'ByteReverse.cxx',
   'format.c',
   'BitReverse.cxx',
-  'djb_hash.cxx',
   'Serial.cxx',
   include_directories: inc,
 )

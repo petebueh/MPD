@@ -280,47 +280,95 @@ TEST(IntrusiveList, Sort)
 	ASSERT_EQ(&*std::next(list.begin(), 2), &items[4]);
 }
 
-#include "util/IntrusiveSortedList.hxx"
-
-TEST(IntrusiveSortedList, Basic)
+/**
+ * Call clear_and_dispose(), and let the disposer unlink the last
+ * item.
+ */
+TEST(IntrusiveList, ClearDisposeUnlink)
 {
-	using Item = CharItem<IntrusiveHookMode::NORMAL>;
+	using Item = CharItem<IntrusiveHookMode::TRACK>;
 
-	struct Compare {
-		constexpr bool operator()(const Item &a, const Item &b) noexcept {
-			return a.ch < b.ch;
+	Item a{'a'}, b{'b'};
+
+	bool a_disposed = false;
+
+	EXPECT_FALSE(a.is_linked());
+	EXPECT_FALSE(b.is_linked());
+
+	IntrusiveList<Item> list;
+	list.push_back(a);
+	list.push_back(b);
+
+	EXPECT_TRUE(a.is_linked());
+	EXPECT_TRUE(b.is_linked());
+
+	list.clear_and_dispose([&](Item *item){
+		EXPECT_FALSE(a.is_linked());
+		EXPECT_TRUE(b.is_linked());
+		EXPECT_EQ(item, &a);
+		EXPECT_FALSE(a_disposed);
+
+		a_disposed = true;
+
+		b.unlink();
+	});
+
+	EXPECT_TRUE(a_disposed);
+	EXPECT_TRUE(list.empty());
+}
+
+/**
+ * Call clear_and_dispose(), and let the disposer push a new item.
+ */
+TEST(IntrusiveList, ClearDisposePush)
+{
+	using Item = CharItem<IntrusiveHookMode::TRACK>;
+
+	Item a{'a'}, b{'b'};
+
+	bool a_disposed = false, b_added = false, b_disposed = false;
+
+	EXPECT_FALSE(a.is_linked());
+	EXPECT_FALSE(b.is_linked());
+
+	IntrusiveList<Item> list;
+	list.push_back(a);
+
+	EXPECT_TRUE(a.is_linked());
+	EXPECT_FALSE(b.is_linked());
+
+	list.clear_and_dispose([&](Item *item){
+		if (!a_disposed) {
+			EXPECT_EQ(item, &a);
+			EXPECT_FALSE(a.is_linked());
+			EXPECT_FALSE(b.is_linked());
+			EXPECT_FALSE(a_disposed);
+			EXPECT_FALSE(b_disposed);
+			EXPECT_FALSE(b_added);
+
+			a_disposed = true;
+
+			list.push_back(b);
+			EXPECT_FALSE(a.is_linked());
+			EXPECT_TRUE(b.is_linked());
+
+			b_added = true;
+		} else if (!b_disposed) {
+			EXPECT_TRUE(b_added);
+			EXPECT_EQ(item, &b);
+			EXPECT_FALSE(a.is_linked());
+			EXPECT_FALSE(b.is_linked());
+			EXPECT_TRUE(a_disposed);
+			EXPECT_FALSE(b_disposed);
+
+			b_disposed = true;
+		} else {
+			FAIL();
 		}
-	};
+	});
 
-	Item items[]{'z', 'a', 'b', 'q', 'b', 'c', 't', 'm', 'y'};
-
-	IntrusiveSortedList<Item, Compare> list;
-	ASSERT_EQ(ToString(list, list.begin(), 2), "__");
-
-	list.insert(items[0]);
-	ASSERT_EQ(ToString(list, list.begin(), 3), "z_z");
-
-	list.insert(items[1]);
-	ASSERT_EQ(ToString(list, list.begin(), 4), "az_a");
-
-	list.insert(items[2]);
-	ASSERT_EQ(ToString(list, list.begin(), 5), "abz_a");
-
-	list.insert(items[3]);
-	ASSERT_EQ(ToString(list, list.begin(), 6), "abqz_a");
-
-	list.insert(items[4]);
-	ASSERT_EQ(ToString(list, list.begin(), 7), "abbqz_a");
-
-	list.insert(items[5]);
-	ASSERT_EQ(ToString(list, list.begin(), 8), "abbcqz_a");
-
-	list.insert(items[6]);
-	ASSERT_EQ(ToString(list, list.begin(), 9), "abbcqtz_a");
-
-	list.insert(items[7]);
-	ASSERT_EQ(ToString(list, list.begin(), 10), "abbcmqtz_a");
-
-	list.insert(items[8]);
-	ASSERT_EQ(ToString(list, list.begin(), 11), "abbcmqtyz_a");
+	EXPECT_TRUE(a_disposed);
+	EXPECT_TRUE(b_added);
+	EXPECT_TRUE(b_disposed);
+	EXPECT_TRUE(list.empty());
 }

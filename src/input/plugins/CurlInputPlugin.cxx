@@ -20,7 +20,7 @@
 #include "event/Call.hxx"
 #include "event/Loop.hxx"
 #include "util/ASCII.hxx"
-#include "util/NumberParser.hxx"
+#include "util/CNumberParser.hxx"
 #include "util/Domain.hxx"
 #include "Log.hxx"
 #include "PluginUnavailable.hxx"
@@ -66,7 +66,7 @@ class CurlInputStream final : public AsyncInputStream, CurlResponseHandler {
 
 public:
 	template<typename I>
-	CurlInputStream(EventLoop &event_loop, const char *_url,
+	CurlInputStream(EventLoop &event_loop, std::string_view _url,
 			const Curl::Headers &headers,
 			I &&_icy,
 			Mutex &_mutex);
@@ -76,7 +76,7 @@ public:
 	CurlInputStream(const CurlInputStream &) = delete;
 	CurlInputStream &operator=(const CurlInputStream &) = delete;
 
-	static InputStreamPtr Open(const char *url,
+	static InputStreamPtr Open(std::string_view url,
 				   const Curl::Headers &headers,
 				   Mutex &mutex);
 
@@ -266,7 +266,7 @@ CurlInputStream::OnHeaders(unsigned status,
 				      FmtBuffer<40>("got HTTP status {}",
 						    status).c_str());
 
-	const std::scoped_lock<Mutex> protect(mutex);
+	const std::scoped_lock protect{mutex};
 
 	if (IsSeekPending()) {
 		/* don't update metadata while seeking */
@@ -329,7 +329,7 @@ CurlInputStream::OnData(std::span<const std::byte> data)
 {
 	assert(!data.empty());
 
-	const std::scoped_lock<Mutex> protect(mutex);
+	const std::scoped_lock protect{mutex};
 
 	if (IsSeekPending())
 		SeekDone();
@@ -345,7 +345,7 @@ CurlInputStream::OnData(std::span<const std::byte> data)
 void
 CurlInputStream::OnEnd()
 {
-	const std::scoped_lock<Mutex> protect(mutex);
+	const std::scoped_lock protect{mutex};
 	InvokeOnAvailable();
 
 	AsyncInputStream::SetClosed();
@@ -354,7 +354,7 @@ CurlInputStream::OnEnd()
 void
 CurlInputStream::OnError(std::exception_ptr e) noexcept
 {
-	const std::scoped_lock<Mutex> protect(mutex);
+	const std::scoped_lock protect{mutex};
 	postponed_exception = std::move(e);
 
 	if (IsSeekPending())
@@ -435,7 +435,7 @@ input_curl_finish() noexcept
 
 template<typename I>
 inline
-CurlInputStream::CurlInputStream(EventLoop &event_loop, const char *_url,
+CurlInputStream::CurlInputStream(EventLoop &event_loop, std::string_view _url,
 				 const Curl::Headers &headers,
 				 I &&_icy,
 				 Mutex &_mutex)
@@ -459,6 +459,11 @@ static CurlEasy
 CreateEasy(const char *url, struct curl_slist *headers)
 {
 	CurlEasy easy{url};
+
+	/* increase CURL's receive buffer size from 16 kB to 512 kB
+	   (the maximum until CURL 7.88.0) to reduce system call
+	   overhead */
+	easy.TrySetOption(CURLOPT_BUFFERSIZE, 512L * 1024L);
 
 	easy.SetOption(CURLOPT_HTTP200ALIASES, http_200_aliases);
 	easy.SetOption(CURLOPT_FOLLOWLOCATION, 1L);
@@ -563,7 +568,7 @@ CurlInputStream::DoSeek(offset_type new_offset)
 }
 
 inline InputStreamPtr
-CurlInputStream::Open(const char *url,
+CurlInputStream::Open(std::string_view url,
 		      const Curl::Headers &headers,
 		      Mutex &mutex)
 {
@@ -583,7 +588,7 @@ CurlInputStream::Open(const char *url,
 }
 
 InputStreamPtr
-OpenCurlInputStream(const char *uri, const Curl::Headers &headers,
+OpenCurlInputStream(std::string_view uri, const Curl::Headers &headers,
 		    Mutex &mutex)
 {
 	return CurlInputStream::Open(uri, headers, mutex);

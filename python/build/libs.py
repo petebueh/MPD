@@ -19,9 +19,9 @@ libsamplerate = CmakeProject(
 )
 
 zlib = ZlibProject(
-    ('http://zlib.net/zlib-1.3.tar.xz',
-     'https://github.com/madler/zlib/releases/download/v1.3/zlib-1.3.tar.xz'),
-    '8a9ba2898e1d0d774eca6ba5b4627a11e5588ba85c8851336eb38de4683050a7',
+    ('http://zlib.net/zlib-1.3.1.tar.xz',
+     'https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.xz'),
+    '38ef96b8dfe510d42707d9c781877914792541133e1870841463bfa73f883e32',
     'lib/libz.a',
 )
 
@@ -36,8 +36,8 @@ libmodplug = AutotoolsProject(
 )
 
 libopenmpt = AutotoolsProject(
-    'https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.7.3+release.autotools.tar.gz',
-    '2cf8369b7916b09264f3f14b9fb6cef35a6e9bee0328dec4f49d98211ccfd722',
+    'https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.7.4+release.autotools.tar.gz',
+    '1600f9335eae3904089a6286f525812961c54ce36a05dfe6eeaa576dd9328f3f',
     'lib/libopenmpt.a',
     [
         '--disable-shared', '--enable-static',
@@ -49,12 +49,12 @@ libopenmpt = AutotoolsProject(
         '--without-portaudio', '--without-portaudiocpp', '--without-sndfile',
         '--without-flac',
     ],
-    base='libopenmpt-0.6.6+release.autotools',
+    base='libopenmpt-0.7.3+release.autotools',
 )
 
 wildmidi = CmakeProject(
-    'https://github.com/Mindwerks/wildmidi/releases/download/wildmidi-0.4.5/wildmidi-0.4.5.tar.gz',
-    'd5e7bef00a7aa47534a53d43b1265f8d3d27f6a28e7f563c1cdf02ff4fa35b99',
+    'https://github.com/Mindwerks/wildmidi/releases/download/wildmidi-0.4.6/wildmidi-0.4.6.tar.gz',
+    '24ca992639ce76efa3737029fceb3672385d56e2ac0a15d50b40cc12d26e60de',
     'lib/libWildMidi.a',
     [
         '-DBUILD_SHARED_LIBS=OFF',
@@ -76,8 +76,8 @@ gme = CmakeProject(
 )
 
 ffmpeg = FfmpegProject(
-    'http://ffmpeg.org/releases/ffmpeg-6.1.tar.xz',
-    '488c76e57dd9b3bee901f71d5c95eaf1db4a5a31fe46a28654e837144207c270',
+    'http://ffmpeg.org/releases/ffmpeg-7.0.tar.xz',
+    '4426a94dd2c814945456600c8adfc402bee65ec14a70e8c531ec9a2cd651da7b',
     'lib/libavcodec.a',
     [
         '--disable-shared', '--enable-static',
@@ -342,6 +342,7 @@ ffmpeg = FfmpegProject(
         '--disable-decoder=kgv1',
         '--disable-decoder=kmvc',
         '--disable-decoder=lagarith',
+        '--disable-decoder=lead',
         '--disable-decoder=loco',
         '--disable-decoder=lscr',
         '--disable-decoder=m101',
@@ -522,8 +523,8 @@ ffmpeg = FfmpegProject(
 )
 
 libnfs = AutotoolsProject(
-    'https://github.com/sahlberg/libnfs/archive/libnfs-5.0.2.tar.gz',
-    '637e56643b19da9fba98f06847788c4dad308b723156a64748041035dcdf9bd3',
+    'https://github.com/sahlberg/libnfs/archive/libnfs-5.0.3.tar.gz',
+    'd945cb4f4c8f82ee1f3640893a168810f794a28e1010bb007ec5add345e9df3e',
     'lib/libnfs.a',
     [
         '--disable-shared', '--enable-static',
@@ -534,6 +535,6 @@ libnfs = AutotoolsProject(
 
         '--disable-utils', '--disable-examples',
     ],
-    base='libnfs-libnfs-5.0.2',
+    base='libnfs-libnfs-5.0.3',
     autoreconf=True,
 )

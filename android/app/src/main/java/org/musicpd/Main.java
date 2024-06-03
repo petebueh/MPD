@@ -3,41 +3,49 @@
 
 package org.musicpd;
 
-import android.annotation.TargetApi;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.util.Log;
-import android.widget.RemoteViews;
 
-import androidx.core.app.ServiceCompat;
+import androidx.annotation.OptIn;
+import androidx.media3.common.util.UnstableApi;
+import androidx.media3.session.MediaSession;
+
+import org.jetbrains.annotations.NotNull;
+import org.musicpd.data.LoggingRepository;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.Objects;
 
+import javax.inject.Inject;
+
+import dagger.hilt.android.AndroidEntryPoint;
+
+@AndroidEntryPoint
 public class Main extends Service implements Runnable {
+
 	private static final String TAG = "Main";
 	private static final String WAKELOCK_TAG = "mpd:wakelockmain";
-	private static final String REMOTE_ERROR = "MPD process was killed";
+
 	private static final int MAIN_STATUS_ERROR = -1;
 	private static final int MAIN_STATUS_STOPPED = 0;
 	private static final int MAIN_STATUS_STARTED = 1;
 
 	private static final int MSG_SEND_STATUS = 0;
-	private static final int MSG_SEND_LOG = 1;
 
 	private Thread mThread = null;
 	private int mStatus = MAIN_STATUS_STOPPED;
@@ -47,6 +55,14 @@ public class Main extends Service implements Runnable {
 	private final IBinder mBinder = new MainStub(this);
 	private boolean mPauseOnHeadphonesDisconnect = false;
 	private PowerManager.WakeLock mWakelock = null;
+
+	private MediaSession mMediaSession = null;
+
+	@Inject
+	LoggingRepository logging;
+
+	@NotNull
+	public static final String SHUTDOWN_ACTION = "org.musicpd.action.ShutdownMPD";
 
 	static class MainStub extends IMain.Stub {
 		private Main mService;
@@ -96,9 +112,6 @@ public class Main extends Service implements Runnable {
 						break;
 					}
 					break;
-				case MSG_SEND_LOG:
-					cb.onLog(arg1, (String) obj);
-					break;
 				}
 			} catch (RemoteException e) {
 			}
@@ -109,7 +122,7 @@ public class Main extends Service implements Runnable {
 	private Bridge.LogListener mLogListener = new Bridge.LogListener() {
 		@Override
 		public void onLog(int priority, String msg) {
-			sendMessage(MSG_SEND_LOG, priority, 0, msg);
+			logging.addLogItem(priority, msg);
 		}
 	};
 
@@ -120,9 +133,13 @@ public class Main extends Service implements Runnable {
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		start();
-		if (intent != null && intent.getBooleanExtra("wakelock", false))
-			setWakelockEnabled(true);
+		if (intent != null && Objects.equals(intent.getAction(), SHUTDOWN_ACTION)) {
+			stop();
+		} else {
+			start();
+			if (intent != null && intent.getBooleanExtra("wakelock", false))
+				setWakelockEnabled(true);
+		}
 		return START_STICKY;
 	}
 
@@ -181,6 +198,7 @@ public class Main extends Service implements Runnable {
 		}
 	}
 
+	@OptIn(markerClass = UnstableApi.class)
 	private void start() {
 		if (mThread != null)
 			return;
@@ -197,7 +215,7 @@ public class Main extends Service implements Runnable {
 			}
 		}, filter);
 
-		final Intent mainIntent = new Intent(this, Settings.class);
+		final Intent mainIntent = new Intent(this, MainActivity.class);
 		mainIntent.setAction("android.intent.action.MAIN");
 		mainIntent.addCategory("android.intent.category.LAUNCHER");
 		final PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
@@ -222,11 +240,16 @@ public class Main extends Service implements Runnable {
 		mThread = new Thread(this);
 		mThread.start();
 
+		MPDPlayer player = new MPDPlayer(Looper.getMainLooper());
+		mMediaSession = new MediaSession.Builder(this, player).build();
+
 		startForeground(R.string.notification_title_mpd_running, notification);
 		startService(new Intent(this, Main.class));
 	}
 
 	private void stop() {
+		mMediaSession.release();
+		mMediaSession = null;
 		if (mThread != null) {
 			if (mThread.isAlive()) {
 				synchronized (this) {
@@ -293,161 +316,9 @@ public class Main extends Service implements Runnable {
 	}
 
 	/*
-	 * Client that bind the Main Service in order to send commands and receive callback
-	 */
-	public static class Client {
-
-		public interface Callback {
-			public void onStarted();
-			public void onStopped();
-			public void onError(String error);
-			public void onLog(int priority, String msg);
-		}
-
-		private boolean mBound = false;
-		private final Context mContext;
-		private Callback mCallback;
-		private IMain mIMain = null;
-
-		private final IMainCallback.Stub mICallback = new IMainCallback.Stub() {
-
-			@Override
-			public void onStopped() throws RemoteException {
-				mCallback.onStopped();
-			}
-
-			@Override
-			public void onStarted() throws RemoteException {
-				mCallback.onStarted();
-			}
-
-			@Override
-			public void onError(String error) throws RemoteException {
-				mCallback.onError(error);
-			}
-
-			@Override
-			public void onLog(int priority, String msg) throws RemoteException {
-				mCallback.onLog(priority, msg);
-			}
-		};
-
-		private final ServiceConnection mServiceConnection = new ServiceConnection() {
-
-			@Override
-			public void onServiceConnected(ComponentName name, IBinder service) {
-				synchronized (this) {
-					mIMain = IMain.Stub.asInterface(service);
-					try {
-						if (mCallback != null)
-							mIMain.registerCallback(mICallback);
-					} catch (RemoteException e) {
-						if (mCallback != null)
-							mCallback.onError(REMOTE_ERROR);
-					}
-				}
-			}
-
-			@Override
-			public void onServiceDisconnected(ComponentName name) {
-				if (mCallback != null)
-					mCallback.onError(REMOTE_ERROR);
-			}
-		};
-
-		public Client(Context context, Callback cb) throws IllegalArgumentException {
-			if (context == null)
-				throw new IllegalArgumentException("Context can't be null");
-			mContext = context;
-			mCallback = cb;
-			mBound = mContext.bindService(new Intent(mContext, Main.class), mServiceConnection, Context.BIND_AUTO_CREATE);
-		}
-
-		public boolean start() {
-			synchronized (this) {
-				if (mIMain != null) {
-					try {
-						mIMain.start();
-						return true;
-					} catch (RemoteException e) {
-					}
-				}
-				return false;
-			}
-		}
-
-		public boolean stop() {
-			synchronized (this) {
-				if (mIMain != null) {
-					try {
-						mIMain.stop();
-						return true;
-					} catch (RemoteException e) {
-					}
-				}
-				return false;
-			}
-		}
-
-		public boolean setPauseOnHeadphonesDisconnect(boolean enabled) {
-			synchronized (this) {
-				if (mIMain != null) {
-					try {
-						mIMain.setPauseOnHeadphonesDisconnect(enabled);
-						return true;
-					} catch (RemoteException e) {
-					}
-				}
-				return false;
-			}
-		}
-
-		public boolean setWakelockEnabled(boolean enabled) {
-			synchronized (this) {
-				if (mIMain != null) {
-					try {
-						mIMain.setWakelockEnabled(enabled);
-						return true;
-					} catch (RemoteException e) {
-					}
-				}
-				return false;
-			}
-		}
-
-		public boolean isRunning() {
-			synchronized (this) {
-				if (mIMain != null) {
-					try {
-						return mIMain.isRunning();
-					} catch (RemoteException e) {
-					}
-				}
-				return false;
-			}
-		}
-
-		public void release() {
-			if (mBound) {
-				synchronized (this) {
-					if (mIMain != null && mICallback != null) {
-						try {
-							if (mCallback != null)
-								mIMain.unregisterCallback(mICallback);
-						} catch (RemoteException e) {
-						}
-					}
-				}
-				mBound = false;
-				mContext.unbindService(mServiceConnection);
-			}
-		}
-	}
-
-	/*
 	 * start Main service without any callback
 	 */
-	public static void start(Context context, boolean wakelock) {
+	public static void startService(Context context, boolean wakelock) {
 		Intent intent = new Intent(context, Main.class)
 			.putExtra("wakelock", wakelock);
 
@@ -458,5 +329,10 @@ public class Main extends Service implements Runnable {
 			context.startForegroundService(intent);
 		else
 			context.startService(intent);
+	}
+
+	public static void stopService(Context context) {
+		Intent intent = new Intent(context, Main.class);
+		context.stopService(intent);
 	}
 }

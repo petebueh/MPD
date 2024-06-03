@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // author: Max Kellermann <max.kellermann@gmail.com>
 
-#ifndef ALLOCATED_STRING_HXX
-#define ALLOCATED_STRING_HXX
+#pragma once
 
 #include "StringPointer.hxx"
 
 #include <algorithm>
 #include <cstddef>
+#include <initializer_list>
 #include <string_view>
 #include <utility>
 
@@ -164,5 +164,3 @@ public:
 
 	using BasicAllocatedString::operator=;
 };
-
-#endif

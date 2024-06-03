@@ -9,7 +9,7 @@
 #include "pcm/AudioFormat.hxx"
 #include "config/Domain.hxx"
 #include "util/StringUtil.hxx"
-#include "util/NumberParser.hxx"
+#include "util/CNumberParser.hxx"
 
 #include <vorbis/vorbisenc.h>
 
@@ -73,7 +73,7 @@ PreparedVorbisEncoder::PreparedVorbisEncoder(const ConfigBlock &block)
 		quality = ParseDouble(value, &endptr);
 
 		if (*endptr != '\0' || quality < -1.0f || quality > 10.0f)
-			throw FmtRuntimeError("quality \"{}\" is not a number in the "
+			throw FmtRuntimeError("quality {:?} is not a number in the "
 					      "range -1 to 10",
 					      value);
 
