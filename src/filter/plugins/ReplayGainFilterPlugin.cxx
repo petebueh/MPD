@@ -13,7 +13,6 @@
 #include "pcm/AudioFormat.hxx"
 #include "pcm/Volume.hxx"
 #include "util/Domain.hxx"
-#include "Idle.hxx"
 #include "Log.hxx"
 
 #include <cassert>
