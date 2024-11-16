@@ -5,6 +5,7 @@
 #include "ReadFrames.hxx"
 #include "cmdline/OptionDef.hxx"
 #include "cmdline/OptionParser.hxx"
+#include "lib/fmt/AudioFormatFormatter.hxx"
 #include "lib/fmt/RuntimeError.hxx"
 #include "fs/Path.hxx"
 #include "fs/NarrowPath.hxx"
@@ -27,7 +28,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 struct CommandLine {
 	FromNarrowPath config_path;
@@ -107,9 +107,7 @@ try {
 	auto filter = prepared_filter->Open(audio_format);
 
 	const AudioFormat out_audio_format = filter->GetOutAudioFormat();
-
-	fprintf(stderr, "audio_format=%s\n",
-		ToString(out_audio_format).c_str());
+	fmt::print(stderr, "audio_format={}\n", out_audio_format);
 
 	/* play */
 
@@ -124,13 +122,14 @@ try {
 		if (nbytes == 0)
 			break;
 
-		auto dest = filter->FilterPCM(std::span{buffer}.first(nbytes));
-		output_fd.FullWrite(dest);
+		for (auto dest = filter->FilterPCM(std::span{buffer}.first(nbytes));
+		     !dest.empty(); dest = filter->ReadMore())
+			output_fd.FullWrite(dest);
 	}
 
 	while (true) {
 		auto dest = filter->Flush();
-		if (dest.data() == nullptr)
+		if (dest.empty())
 			break;
 		output_fd.FullWrite(dest);
 	}
