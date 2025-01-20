@@ -58,7 +58,7 @@ and unpack it (or `clone the git repository
 In any case, you need:
 
 * a C++20 compiler (e.g. GCC 10 or clang 11)
-* `Meson 0.56.0 <http://mesonbuild.com/>`__ and `Ninja
+* `Meson 1.0 <http://mesonbuild.com/>`__ and `Ninja
   <https://ninja-build.org/>`__
 * pkg-config 
 
@@ -529,7 +529,14 @@ The following table lists the audio_output options valid for all plugins:
    * - **tags yes|no**
      - If set to no, then :program:`MPD` will not send tags to this output. This is only useful for output plugins that can receive tags, for example the httpd output plugin.
    * - **always_on yes|no**
-     - If set to yes, then :program:`MPD` attempts to keep this audio output always open. This may be useful for streaming servers, when you don't want to disconnect all listeners even when playback is accidentally stopped.
+     - If set to yes, then :program:`MPD` attempts to keep this audio
+       output always open.  Instead of closing at the end
+       of playback, it puts the device in "pause" mode.  This works
+       only with output plugins that suport "pause" mode (see
+       :ref:`ALSA option "close_on_pause" <alsa_plugin>`).
+       This may be useful for streaming servers, when you don't want
+       to disconnect all listeners even when playback is accidentally
+       stopped.
    * - **always_off yes|no**
      - If set to yes, then :program:`MPD` never uses this audio output for
        playback even if it's enabled. This can be used with the null output

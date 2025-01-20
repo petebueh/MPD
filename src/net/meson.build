@@ -41,6 +41,7 @@ endif
 net = static_library(
   'net',
   net_sources,
+  'FormatAddress.cxx',
   'ToString.cxx',
   'HostParser.cxx',
   'Resolver.cxx',
@@ -61,5 +62,6 @@ net_dep = declare_dependency(
   link_with: net,
   dependencies: [
     system_dep,
+    io_dep,
   ],
 )

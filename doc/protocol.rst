@@ -243,6 +243,43 @@ applies `Unicode normalization <https://unicode.org/reports/tr15/>`__
 and converts all punctuation to ASCII equivalents
 if MPD was compiled with `ICU <https://icu.unicode.org/>`__ support.
 
+Explicit case-sensitivity [#since_0_24]_
+----------------------------------------
+
+.. note:: The following variants of filter operators override the default case sensitivity
+   that is command dependant with explicit case sensitivity.
+
+.. list-table:: Explicitly case-sensitive operators
+   :widths: 33 33 33
+
+   * - Explicitly case-sensitive
+     - Explicitly case-insensitive
+     - Equivalent command dependant
+
+   * - ``eq_cs``
+     - ``eq_ci``
+     - ``==``
+
+   * - ``!eq_cs``
+     - ``!eq_ci``
+     - ``!=``
+
+   * - ``contains_cs``
+     - ``contains_ci``
+     - ``contains``
+
+   * - ``!contains_cs``
+     - ``!contains_ci``
+     - ``!contains``
+
+   * - ``starts_with_cs``
+     - ``starts_with_ci``
+     - ``starts_with``
+
+   * - ``!starts_with_cs``
+     - ``!starts_with_ci``
+     - ``!starts_with``
+
 Prior to MPD 0.21, the syntax looked like this::
 
  find TYPE VALUE
@@ -307,6 +344,7 @@ The following tags are supported by :program:`MPD`:
 * **ensemble**: the ensemble performing this song, e.g. "Wiener Philharmoniker".
 * **movement**: name of the movement, e.g. "Andante con moto".
 * **movementnumber**: movement number, e.g. "2" or "II".
+* **showmovement**: If this tag is set to "1" players supporting this tag will display the `work`, `movement`, and `movementnumber`` instead of the track title.
 * **location**: location of the recording, e.g. "Royal Albert Hall".
 * **grouping**: "used if the sound belongs to a larger category of
   sounds/music" (`from the IDv2.4.0 TIT1 description
@@ -506,6 +544,7 @@ Querying :program:`MPD`'s status
       :ref:`audio_output_format` for a detailed explanation.
     - ``updating_db``: ``job id``
     - ``error``: if there is an error, returns message here
+    - ``lastloadedplaylist``: last loaded stored playlist [#since_0_24]_
 
     :program:`MPD` may omit lines which have no (known) value.  Older
     :program:`MPD` versions used to have a "magic" value for
@@ -956,6 +995,14 @@ remote playlists (absolute URI with a supported scheme).
     plugins are supported. A range may be specified to list
     only a part of the playlist. [#since_0_24]_
 
+.. _command_searchplaylist:
+
+:command:`searchplaylist {NAME} {FILTER} [window {START:END}]`
+    Search the playlist for songs matching
+    ``FILTER`` (see :ref:`Filters <filter_syntax>`).  Playlist
+    plugins are supported. A range may be specified to list
+    only a part of the playlist.
+
 .. _command_listplaylists:
 
 :command:`listplaylists`
@@ -1063,7 +1110,7 @@ The music database
 
     This is currently implemented by searching the directory the file
     resides in for a file called :file:`cover.png`, :file:`cover.jpg`,
-    :file:`cover.tiff` or :file:`cover.bmp`.
+    or :file:`cover.webp`.
 
     Returns the file size and actual number
     of bytes read at the requested offset, followed
@@ -1471,6 +1518,20 @@ the database for songs).
     sticker item with that name already exists, it is
     replaced.
 
+.. _command_sticker_inc:
+
+:command:`sticker inc {TYPE} {URI} {NAME} {VALUE}`
+    Adds a sticker value to the specified object.  If a
+    sticker item with that name already exists, it is
+    incremented by supplied value.
+
+.. _command_sticker_dec:
+
+:command:`sticker dec {TYPE} {URI} {NAME} {VALUE}`
+    Adds a sticker value to the specified object.  If a
+    sticker item with that name already exists, it is
+    decremented by supplied value.
+
 .. _command_sticker_delete:
 
 :command:`sticker delete {TYPE} {URI} [NAME]`
@@ -1540,6 +1601,12 @@ Examples:
 
 :command:`stickernames`
     Gets a list of uniq sticker names.
+
+:command:`stickertypes`
+    Shows a list of available sticker types.
+
+:command:`stickernamestypes [TYPE]`
+    Gets a list of uniq sticker names and their types.
 
 Connection settings
 ===================
@@ -1628,6 +1695,55 @@ Connection settings
 :command:`tagtypes all`
     Announce that this client is interested in all tag
     types.  This is the default setting for new clients.
+
+.. _command_tagtypes_available:
+
+:command:`tagtypes available`
+    Shows the list of tag types configured
+    by the ``metadata_to_use`` setting.
+
+:command:`tagtypes reset {NAME...}`
+    Clear the list of tag types and Re-enable one or more tags
+    from the list of tag types for this client.  These will no
+    longer be hidden from responses to this client.
+
+.. _command_protocol:
+
+:command:`protocol`
+    Shows a list of enabled protocol features.
+
+    Available features:
+
+    - ``hide_playlists_in_root``: disables the listing of
+      stored playlists for the :ref:`lsinfo <command_lsinfo>`.
+
+    The following ``protocol`` sub commands configure the
+    protocol features.
+
+.. _command_protocol_disable:
+
+:command:`protocol disable {FEATURE...}`
+    Disables one or more features.
+
+.. _command_protocol_enable:
+
+:command:`protocol enable {FEATURE...}`
+    Enables one or more features.
+
+.. _command_protocol_clear:
+
+:command:`protocol clear`
+    Disables all protocol features.
+
+.. _command_protocol_all:
+
+:command:`protocol all`
+    Enables all protocol features.
+
+.. _command_protocol_available:
+
+:command:`protocol available`
+    Lists all available protocol features.
 
 .. _partition_commands:
 

@@ -2,15 +2,15 @@ project(
   'mpd',
   ['c', 'cpp'],
   version: '0.24',
-  meson_version: '>= 0.56.0',
+  meson_version: '>= 1.0',
   default_options: [
     'c_std=c11',
     'build.c_std=c11',
-    'cpp_std=c++2a',
-    'build.cpp_std=c++2a',
+    'cpp_std=c++20',
+    'build.cpp_std=c++20',
     'warning_level=3',
 
-    'fmt:cpp_std=c++2a',
+    'fmt:cpp_std=c++20',
 
     # If we build those libraries as Meson subproject, they shall be
     # linked statically into the MPD executable.
@@ -98,10 +98,10 @@ version_cxx = vcs_tag(input: 'src/GitVersion.cxx', output: 'GitVersion.cxx')
 compiler = meson.get_compiler('cpp')
 c_compiler = meson.get_compiler('c')
 
-if compiler.get_id() == 'gcc' and compiler.version().version_compare('<8')
-  warning('Your GCC version is too old.  You need at least version 8.')
-elif compiler.get_id() == 'clang' and compiler.version().version_compare('<7')
-  warning('Your clang version is too old.  You need at least version 7.')
+if compiler.get_id() == 'gcc' and compiler.version().version_compare('<10')
+  warning('Your GCC version is too old.  You need at least version 10.')
+elif compiler.get_id() == 'clang' and compiler.version().version_compare('<11')
+  warning('Your clang version is too old.  You need at least version 11.')
 endif
 
 version_conf = configuration_data()
@@ -339,6 +339,7 @@ sources = [
   version_cxx,
   'src/Main.cxx',
   'src/protocol/ArgParser.cxx',
+  'src/protocol/IdleFlags.cxx',
   'src/command/CommandError.cxx',
   'src/command/PositionArg.cxx',
   'src/command/AllCommands.cxx',
@@ -357,7 +358,6 @@ sources = [
   'src/config/PlayerConfig.cxx',
   'src/config/ReplayGainConfig.cxx',
   'src/Idle.cxx',
-  'src/IdleFlags.cxx',
   'src/decoder/Thread.cxx',
   'src/decoder/Control.cxx',
   'src/decoder/Bridge.cxx',
@@ -379,6 +379,7 @@ sources = [
   'src/client/File.cxx',
   'src/client/Response.cxx',
   'src/client/ThreadBackgroundCommand.cxx',
+  'src/client/ProtocolFeature.cxx',
   'src/Listen.cxx',
   'src/LogInit.cxx',
   'src/ls.cxx',
@@ -601,7 +602,7 @@ if is_android
 else
   target_type = 'executable'
   target_name = 'mpd'
-  install_dir = ''
+  install_dir = get_option('bindir')
 endif
 
 mpd = build_target(

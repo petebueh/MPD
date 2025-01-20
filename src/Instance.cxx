@@ -4,7 +4,7 @@
 #include "config.h"
 #include "Instance.hxx"
 #include "Partition.hxx"
-#include "IdleFlags.hxx"
+#include "protocol/IdleFlags.hxx"
 #include "StateFile.hxx"
 #include "Stats.hxx"
 #include "client/List.hxx"
@@ -88,6 +88,22 @@ Instance::DeletePartition(Partition &partition) noexcept
 			break;
 		}
 	}
+}
+
+AudioOutputControl *
+Instance::FindOutput(std::string_view name,
+		     Partition &excluding_partition) noexcept
+{
+	for (auto &partition : partitions) {
+		if (&partition == &excluding_partition)
+			continue;
+
+		auto *output = partition.outputs.FindByName(name);
+		if (output != nullptr && !output->IsDummy())
+			return output;
+	}
+
+	return nullptr;
 }
 
 #ifdef ENABLE_DATABASE

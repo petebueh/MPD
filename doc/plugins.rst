@@ -24,7 +24,7 @@ The default plugin. Stores a copy of the database in memory. A file is used for 
    * - **compress yes|no**
      - Compress the database file using gzip? Enabled by default (if built with zlib).
    * - **hide_playlist_targets yes|no**
-     - Hide songs which are referenced by playlists?  Thas is,
+     - Hide songs which are referenced by playlists?  That is,
        playlist files which are represented in the database as virtual
        directories (playlist plugin setting ``as_directory``).  This
        option is enabled by default and avoids duplicate songs; one
@@ -895,6 +895,11 @@ The `Advanced Linux Sound Architecture (ALSA) <http://www.alsa-project.org/>`_ p
      - Specifies a list of allowed audio formats, separated by a space. All items may contain asterisks as a wild card, and may be followed by "=dop" to enable DoP (DSD over PCM) for this particular format. The first matching format is used, and if none matches, MPD chooses the best fallback of this list.
        
        Example: "96000:16:* 192000:24:* dsd64:*=dop *:dsd:*".
+
+   * - **close_on_pause yes|no**
+     - Close the ALSA device while playback is paused?  This defaults
+       to *yes* because this allows other applications to use the
+       device while MPD is paused.
 
 The according hardware mixer plugin understands the following settings:
 
