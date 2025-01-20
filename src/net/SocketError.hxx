@@ -167,9 +167,23 @@ SocketErrorCategory() noexcept
 
 [[gnu::pure]]
 static inline bool
+IsSocketError(const std::system_error &e) noexcept
+{
+	return e.code().category() == SocketErrorCategory();
+}
+
+[[gnu::pure]]
+static inline bool
+IsSocketError(const std::system_error &e, socket_error_t code) noexcept
+{
+	return IsSocketError(e) && static_cast<socket_error_t>(e.code().value()) == code;
+}
+
+[[gnu::pure]]
+static inline bool
 IsSocketErrorReceiveWouldBlock(const std::system_error &e) noexcept
 {
-	return e.code().category() == SocketErrorCategory() &&
+	return IsSocketError(e) &&
 		IsSocketErrorReceiveWouldBlock(e.code().value());
 }
 

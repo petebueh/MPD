@@ -5,11 +5,12 @@
 #include "Request.hxx"
 #include "Instance.hxx"
 #include "Partition.hxx"
-#include "IdleFlags.hxx"
+#include "protocol/IdleFlags.hxx"
 #include "output/Filtered.hxx"
 #include "client/Client.hxx"
 #include "client/Response.hxx"
 #include "util/CharUtil.hxx"
+#include "util/StringVerify.hxx"
 
 #include <fmt/format.h>
 
@@ -39,21 +40,15 @@ handle_listpartitions(Client &client, Request, Response &r)
 }
 
 static constexpr bool
-IsValidPartitionChar(char ch)
+IsValidPartitionChar(char ch) noexcept
 {
 	return IsAlphaNumericASCII(ch) || ch == '-' || ch == '_';
 }
 
-[[gnu::pure]]
-static bool
+static constexpr bool
 IsValidPartitionName(const char *name) noexcept
 {
-	do {
-		if (!IsValidPartitionChar(*name))
-			return false;
-	} while (*++name != 0);
-
-	return true;
+	return CheckCharsNonEmpty(name, IsValidPartitionChar);
 }
 
 [[gnu::pure]]
@@ -150,29 +145,24 @@ handle_moveoutput(Client &client, Request request, Response &response)
 
 	/* find the partition which owns this output currently */
 	auto &instance = client.GetInstance();
-	for (auto &partition : instance.partitions) {
-		if (&partition == &dest_partition)
-			continue;
 
-		auto *output = partition.outputs.FindByName(output_name);
-		if (output == nullptr || output->IsDummy())
-			continue;
-
-		const bool was_enabled = output->IsEnabled();
-
-		if (existing_output != nullptr)
-			/* move the output back where it once was */
-			existing_output->ReplaceDummy(output->Steal(),
-						      was_enabled);
-		else
-			/* copy the AudioOutputControl and add it to the output list */
-			dest_partition.outputs.AddMoveFrom(std::move(*output),
-							   was_enabled);
-
-		instance.EmitIdle(IDLE_OUTPUT);
-		return CommandResult::OK;
+	auto *output = instance.FindOutput(output_name, dest_partition);
+	if (output == nullptr) {
+		response.Error(ACK_ERROR_NO_EXIST, "No such output");
+		return CommandResult::ERROR;
 	}
 
-	response.Error(ACK_ERROR_NO_EXIST, "No such output");
-	return CommandResult::ERROR;
+	const bool was_enabled = output->IsEnabled();
+
+	if (existing_output != nullptr)
+		/* move the output back where it once was */
+		existing_output->ReplaceDummy(output->Steal(),
+					      was_enabled);
+	else
+		/* copy the AudioOutputControl and add it to the output list */
+		dest_partition.outputs.AddMoveFrom(std::move(*output),
+						   was_enabled);
+
+	instance.EmitIdle(IDLE_OUTPUT);
+	return CommandResult::OK;
 }

@@ -197,14 +197,17 @@ AudioOutputControl::WaitForDelay(std::unique_lock<Mutex> &lock) noexcept
 		if (delay <= std::chrono::steady_clock::duration::zero())
 			return true;
 
-		(void)wake_cond.wait_for(lock, delay);
+		if (delay >= std::chrono::steady_clock::duration::max())
+			wake_cond.wait(lock);
+		else
+			(void)wake_cond.wait_for(lock, delay);
 
 		if (command != Command::NONE)
 			return false;
 	}
 }
 
-bool
+inline bool
 AudioOutputControl::FillSourceOrClose() noexcept
 try {
 	return source.Fill(mutex);
@@ -386,7 +389,7 @@ AudioOutputControl::InternalDrain() noexcept
 
 		while (true) {
 			auto buffer = source.Flush();
-			if (buffer.data() == nullptr)
+			if (buffer.empty())
 				break;
 
 			PlayFull(*output, buffer);

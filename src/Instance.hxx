@@ -38,6 +38,7 @@ class InotifyUpdate;
 
 class ClientList;
 struct Partition;
+class AudioOutputControl;
 class StateFile;
 class RemoteTagCache;
 class StickerDatabase;
@@ -73,7 +74,7 @@ struct Instance final
 	/**
 	 * A thread running an #EventLoop for non-blocking (bulk) I/O.
 	 */
-	EventThread io_thread{true};
+	EventThread io_thread;
 
 	/**
 	 * Another thread running an #EventLoop for non-blocking
@@ -81,7 +82,7 @@ struct Instance final
 	 * events which require low latency, e.g. for filling hardware
 	 * ring buffers.
 	 */
-	EventThread rtio_thread;
+	EventThread rtio_thread{true};
 
 #ifdef ENABLE_SYSTEMD_DAEMON
 	Systemd::Watchdog systemd_watchdog{event_loop};
@@ -170,6 +171,17 @@ struct Instance final
 	void DeletePartition(Partition &partition) noexcept;
 
 	void BeginShutdownPartitions() noexcept;
+
+	/**
+	 * Returns the (non-dummy) audio output device with the
+	 * specified name.  Returns nullptr if the name does not
+	 * exist.
+	 *
+	 * @param excluding_partition ignore this partition
+	 */
+	[[gnu::pure]]
+	AudioOutputControl *FindOutput(std::string_view name,
+				       Partition &excluding_partition) noexcept;
 
 #ifdef ENABLE_DATABASE
 	/**

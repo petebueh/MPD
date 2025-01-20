@@ -36,8 +36,8 @@ libmodplug = AutotoolsProject(
 )
 
 libopenmpt = AutotoolsProject(
-    'https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.7.4+release.autotools.tar.gz',
-    '1600f9335eae3904089a6286f525812961c54ce36a05dfe6eeaa576dd9328f3f',
+    'https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.7.9+release.autotools.tar.gz',
+    '0386e918d75d797e79d5b14edd0847165d8b359e9811ef57652c0a356a2dfcf4',
     'lib/libopenmpt.a',
     [
         '--disable-shared', '--enable-static',
@@ -49,7 +49,7 @@ libopenmpt = AutotoolsProject(
         '--without-portaudio', '--without-portaudiocpp', '--without-sndfile',
         '--without-flac',
     ],
-    base='libopenmpt-0.7.3+release.autotools',
+    base='libopenmpt-0.7.9+release.autotools',
 )
 
 wildmidi = CmakeProject(
@@ -76,8 +76,8 @@ gme = CmakeProject(
 )
 
 ffmpeg = FfmpegProject(
-    'http://ffmpeg.org/releases/ffmpeg-7.0.tar.xz',
-    '4426a94dd2c814945456600c8adfc402bee65ec14a70e8c531ec9a2cd651da7b',
+    'http://ffmpeg.org/releases/ffmpeg-7.1.tar.xz',
+    '40973d44970dbc83ef302b0609f2e74982be2d85916dd2ee7472d30678a7abe6',
     'lib/libavcodec.a',
     [
         '--disable-shared', '--enable-static',
