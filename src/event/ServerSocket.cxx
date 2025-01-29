@@ -101,29 +101,6 @@ private:
 
 static constexpr Domain server_socket_domain("server_socket");
 
-static int
-get_remote_uid(SocketDescriptor s) noexcept
-{
-#ifdef HAVE_STRUCT_UCRED
-	const auto cred = s.GetPeerCredentials();
-	if (cred.pid < 0)
-		return -1;
-
-	return cred.uid;
-#else
-#ifdef HAVE_GETPEEREID
-	uid_t euid;
-	gid_t egid;
-
-	if (getpeereid(s.Get(), &euid, &egid) == 0)
-		return euid;
-#else
-	(void)s;
-#endif
-	return -1;
-#endif
-}
-
 inline void
 ServerSocket::OneServerSocket::Accept() noexcept
 {
@@ -143,9 +120,7 @@ ServerSocket::OneServerSocket::Accept() noexcept
 			 (const char *)msg);
 	}
 
-	const auto uid = get_remote_uid(peer_fd);
-
-	parent.OnAccept(std::move(peer_fd), peer_address, uid);
+	parent.OnAccept(std::move(peer_fd), peer_address);
 }
 
 void
