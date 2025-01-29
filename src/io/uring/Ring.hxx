@@ -26,6 +26,16 @@ public:
 	 */
 	Ring(unsigned entries, unsigned flags);
 
+	/**
+	 * Construct the io_uring using io_uring_queue_init().
+	 *
+	 * Throws on error.
+	 *
+	 * @param params initialization parameters; will also be
+	 * written to by this constructor
+	 */
+	Ring(unsigned entries, struct io_uring_params &params);
+
 	~Ring() noexcept {
 		io_uring_queue_exit(&ring);
 	}
@@ -41,6 +51,23 @@ public:
 	}
 
 	/**
+	 * Wrapper for io_uring_register_iowq_max_workers().
+	 *
+	 * Throws on error.
+	 */
+	void SetMaxWorkers(unsigned values[2]);
+
+	/**
+	 * This overload constructs an array for
+	 * io_uring_register_iowq_max_workers() and discards the
+	 * output values.
+	 */
+	void SetMaxWorkers(unsigned bounded, unsigned unbounded) {
+		unsigned values[2] = {bounded, unbounded};
+		SetMaxWorkers(values);
+	}
+
+	/**
 	 * Returns a submit queue entry or nullptr if the submit queue
 	 * is full.
 	 */
@@ -53,8 +80,17 @@ public:
 	 * kernel using io_uring_submit().
 	 *
 	 * Throws on error.
+	 *
+	 * @see io_uring_submit()
 	 */
 	void Submit();
+
+	/**
+	 * Like Submit(), but also flush completions.
+	 *
+	 * @see io_uring_submit_and_get_events()
+	 */
+	void SubmitAndGetEvents();
 
 	/**
 	 * Waits for one completion.

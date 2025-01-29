@@ -9,16 +9,39 @@ namespace Uring {
 
 Ring::Ring(unsigned entries, unsigned flags)
 {
-	int error = io_uring_queue_init(entries, &ring, flags);
-	if (error < 0)
+	if (int error = io_uring_queue_init(entries, &ring, flags);
+	    error < 0)
 		throw MakeErrno(-error, "io_uring_queue_init() failed");
+}
+
+Ring::Ring(unsigned entries, struct io_uring_params &params)
+{
+	if (int error = io_uring_queue_init_params(entries, &ring, &params);
+	    error < 0)
+		throw MakeErrno(-error, "io_uring_queue_init_params() failed");
+}
+
+void
+Ring::SetMaxWorkers(unsigned values[2])
+{
+	if (int error = io_uring_register_iowq_max_workers(&ring, values);
+	    error < 0)
+		throw MakeErrno(-error, "io_uring_register_iowq_max_workers() failed");
 }
 
 void
 Ring::Submit()
 {
-	int error = io_uring_submit(&ring);
-	if (error < 0)
+	if (int error = io_uring_submit(&ring);
+	    error < 0)
+		throw MakeErrno(-error, "io_uring_submit() failed");
+}
+
+void
+Ring::SubmitAndGetEvents()
+{
+	if (int error = io_uring_submit_and_get_events(&ring);
+	    error < 0)
 		throw MakeErrno(-error, "io_uring_submit() failed");
 }
 
@@ -26,8 +49,8 @@ struct io_uring_cqe *
 Ring::WaitCompletion()
 {
 	struct io_uring_cqe *cqe;
-	int error = io_uring_wait_cqe(&ring, &cqe);
-	if (error < 0) {
+	if (int error = io_uring_wait_cqe(&ring, &cqe);
+	    error < 0) {
 		if (error == -EAGAIN)
 			return nullptr;
 
@@ -41,8 +64,7 @@ struct io_uring_cqe *
 Ring::PeekCompletion()
 {
 	struct io_uring_cqe *cqe;
-	int error = io_uring_peek_cqe(&ring, &cqe);
-	if (error < 0) {
+	if (int error = io_uring_peek_cqe(&ring, &cqe); error < 0) {
 		if (error == -EAGAIN)
 			return nullptr;
 
