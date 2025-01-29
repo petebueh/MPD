@@ -23,10 +23,19 @@ class Queue {
 
 public:
 	Queue(unsigned entries, unsigned flags);
+	Queue(unsigned entries, struct io_uring_params &params);
 	~Queue() noexcept;
 
 	FileDescriptor GetFileDescriptor() const noexcept {
 		return ring.GetFileDescriptor();
+	}
+
+	void SetMaxWorkers(unsigned values[2]) {
+		ring.SetMaxWorkers(values);
+	}
+
+	void SetMaxWorkers(unsigned bounded, unsigned unbounded) {
+		ring.SetMaxWorkers(bounded, unbounded);
 	}
 
 	struct io_uring_sqe *GetSubmitEntry() noexcept {
@@ -49,6 +58,10 @@ protected:
 	void AddPending(struct io_uring_sqe &sqe,
 			Operation &operation) noexcept;
 
+	void SubmitAndGetEvents() {
+		ring.SubmitAndGetEvents();
+	}
+
 public:
 	void Push(struct io_uring_sqe &sqe,
 		  Operation &operation) noexcept {
@@ -60,12 +73,28 @@ public:
 		ring.Submit();
 	}
 
+	/**
+	 * @return true if a completion was dispatched, false if the
+	 * completion queue was empty
+	 */
 	bool DispatchOneCompletion();
 
-	void DispatchCompletions() {
-		while (DispatchOneCompletion()) {}
+	/**
+	 * @return true if at least one completion was dispatched,
+	 * false if the completion queue was empty
+	 */
+	bool DispatchCompletions() {
+		bool result = false;
+		while (DispatchOneCompletion()) {
+			result = true;
+		}
+		return result;
 	}
 
+	/**
+	 * @return true if a completion was dispatched, false if the
+	 * completion queue was empty
+	 */
 	bool WaitDispatchOneCompletion();
 
 	void WaitDispatchCompletions() {
