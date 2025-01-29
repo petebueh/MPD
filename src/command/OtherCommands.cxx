@@ -308,7 +308,7 @@ handle_getrg(Client &client, Request, Response &r)
 
 	const auto rg = partition.mixer_memento.GetReplayGain(partition.outputs);
 	if (rg > 0)
-		r.Fmt(FMT_STRING("rg: {}\n"), rg);
+		r.Fmt("rg: {}\n", rg);
 	return CommandResult::OK;
 }
 
