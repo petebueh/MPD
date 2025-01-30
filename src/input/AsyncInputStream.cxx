@@ -159,30 +159,12 @@ AsyncInputStream::IsAvailable() const noexcept
 		!buffer.empty();
 }
 
-size_t
-AsyncInputStream::Read(std::unique_lock<Mutex> &lock,
-		       std::span<std::byte> dest)
+inline std::size_t
+AsyncInputStream::ReadFromBuffer(std::span<std::byte> dest) noexcept
 {
-	assert(!GetEventLoop().IsInside());
-
-	/* wait for data */
-	CircularBuffer<std::byte>::Range r;
-	while (true) {
-		Check();
-
-		r = buffer.Read();
-		if (!r.empty())
-			break;
-
-		if (IsEOF())
-			return 0;
-
-		caller_cond.wait(lock);
-	}
-
-	const size_t nbytes = std::min(dest.size(), r.size());
-	memcpy(dest.data(), r.data(), nbytes);
-	buffer.Consume(nbytes);
+	const size_t nbytes = buffer.MoveTo(dest);
+	if (nbytes == 0)
+		return 0;
 
 	if (buffer.empty())
 		/* when the buffer becomes empty, reset its head and
@@ -191,11 +173,31 @@ AsyncInputStream::Read(std::unique_lock<Mutex> &lock,
 		buffer.Clear();
 
 	offset += (offset_type)nbytes;
-
-	if (paused && buffer.GetSize() < resume_at)
-		deferred_resume.Schedule();
-
 	return nbytes;
+}
+
+size_t
+AsyncInputStream::Read(std::unique_lock<Mutex> &lock,
+		       std::span<std::byte> dest)
+{
+	assert(!GetEventLoop().IsInside());
+
+	/* wait for data */
+	while (true) {
+		Check();
+
+		if (std::size_t nbytes = ReadFromBuffer(dest); nbytes > 0) {
+			if (paused && buffer.GetSize() < resume_at)
+				deferred_resume.Schedule();
+
+			return nbytes;
+		}
+
+		if (IsEOF())
+			return 0;
+
+		caller_cond.wait(lock);
+	}
 }
 
 void
