@@ -59,7 +59,7 @@ MultipleOutputs::GetVolume() const noexcept
 	return total / ok;
 }
 
-gcc_pure
+[[gnu::pure]]
 static int
 output_mixer_get_rg(const AudioOutputControl &ao) noexcept
 {
