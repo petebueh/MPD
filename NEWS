@@ -1,4 +1,22 @@
-ver 0.24.2 (not yet released)
+ver 0.25 (not yet released)
+* protocol
+  - implement "window" parameter for command "list"
+* output
+  - pipewire: add option "reconnect_stream"
+* switch to C++23
+* require Meson 1.2
+
+ver 0.24.3 (not yet released)
+
+ver 0.24.2 (2025/03/26)
+* input
+  - io_uring: fix stuck seek after I/O error
+* decoder
+  - flac: enable chained Ogg decoding
+* player
+  - fix stalled playback after queue modification
+  - fix deadlock with "single" mode
+* Linux: fix build failure with ancient kernel headers
 
 ver 0.24.1 (2025/03/21)
 * input
@@ -9,7 +27,9 @@ ver 0.24.1 (2025/03/21)
 * Linux
   - add configure-time check for openat2()
   - fix use-after-free bug on io_uring shutdown
-* macOS: implement standard directories
+* macOS
+  - implement standard directories
+  - fix command-line parser errors
 * fix build failure in the "id3tag" Meson subproject
 * doc: use "sphinx_rtd_theme" only if it is installed
 
