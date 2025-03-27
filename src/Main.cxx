@@ -660,6 +660,20 @@ MainOrThrow(int argc, char *argv[])
 
 	ParseCommandLine(argc, argv, options, raw_config);
 
+#if defined(ENABLE_DAEMON) && defined(__APPLE__)
+	if (options.daemon) {
+		// Fork before any Objective-C runtime initializations
+		pid_t pid = fork();
+		if (pid < 0)
+			throw MakeErrno("fork() failed");
+
+		if (pid > 0) {
+			// Parent process: exit immediately
+			_exit(0);
+		}
+	}
+#endif
+
 	MainConfigured(options, raw_config);
 }
 
