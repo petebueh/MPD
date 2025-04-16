@@ -8,6 +8,9 @@
 #include "LogInit.hxx"
 #include "Log.hxx"
 #include "config/File.hxx"
+#include "db/Features.hxx" // for ENABLE_DATABASE
+#include "pcm/Features.h" // for ENABLE_LIBSAMPLERATE, ENABLE_SOXR
+#include "lib/icu/Features.h" // for HAVE_ICU, HAVE_ICONV
 #include "decoder/DecoderList.hxx"
 #include "decoder/DecoderPlugin.hxx"
 #include "output/Registry.hxx"
@@ -22,6 +25,7 @@
 #include "fs/FileSystem.hxx"
 #include "fs/glue/StandardDirectory.hxx"
 #include "event/Features.h"
+#include "net/Features.hxx" // for HAVE_TCP, HAVE_IPV6, HAVE_UN
 #include "io/uring/Features.h"
 #include "cmdline/OptionDef.hxx"
 #include "cmdline/OptionParser.hxx"
@@ -50,6 +54,7 @@
 #include "encoder/EncoderPlugin.hxx"
 #endif
 
+#include "archive/Features.h" // for ENABLE_ARCHIVE
 #ifdef ENABLE_ARCHIVE
 #include "archive/ArchiveList.hxx"
 #include "archive/ArchivePlugin.hxx"

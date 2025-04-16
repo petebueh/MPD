@@ -307,12 +307,9 @@ if not get_option('syslog').disabled()
 endif
 
 enable_database = get_option('database')
-conf.set('ENABLE_DATABASE', enable_database)
 
 enable_inotify = get_option('inotify') and is_linux and enable_database
 conf.set('ENABLE_INOTIFY', enable_inotify)
-
-conf.set('ENABLE_DSD', get_option('dsd'))
 
 inc = include_directories(
   'src',
@@ -498,6 +495,7 @@ subdir('src/lib/expat')
 subdir('src/lib/ffmpeg')
 subdir('src/lib/gcrypt')
 subdir('src/lib/nfs')
+subdir('src/lib/nlohmann_json')
 subdir('src/lib/oss')
 subdir('src/lib/pcre')
 subdir('src/lib/pipewire')
@@ -506,7 +504,6 @@ subdir('src/lib/sndio')
 subdir('src/lib/sqlite')
 subdir('src/lib/systemd')
 subdir('src/lib/upnp')
-subdir('src/lib/yajl')
 
 subdir('src/lib/crypto')
 
