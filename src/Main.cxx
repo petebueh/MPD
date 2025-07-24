@@ -49,6 +49,7 @@
 #include "unix/Daemon.hxx"
 #endif
 
+#include "db/Features.hxx" // for ENABLE_DATABASE
 #ifdef ENABLE_DATABASE
 #include "db/update/Service.hxx"
 #include "db/Configured.hxx"
@@ -69,6 +70,7 @@
 #include "sticker/Database.hxx"
 #endif
 
+#include "archive/Features.h" // for ENABLE_ARCHIVE
 #ifdef ENABLE_ARCHIVE
 #include "archive/ArchiveList.hxx"
 #endif
@@ -86,6 +88,10 @@
 
 #ifdef ENABLE_DBUS
 #include "lib/dbus/Init.hxx"
+#endif
+
+#if defined(ENABLE_DAEMON) && defined(__APPLE__)
+#include "system/Error.hxx"
 #endif
 
 #ifdef ENABLE_SYSTEMD_DAEMON

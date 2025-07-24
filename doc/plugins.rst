@@ -551,9 +551,19 @@ Decodes Musepack files using `libmpcdec <http://www.musepack.net/>`_.
 mpg123
 ------
 
-Decodes MP3 files using `libmpg123 <http://www.mpg123.de/>`_. Currently, this
-decoder does not support streams (e.g. archived files, remote files over HTTP,
-...), only regular local files.
+Decodes MP3 files using `libmpg123 <http://www.mpg123.de/>`_.
+
+.. list-table::
+   :widths: 20 80
+   :header-rows: 1
+
+   * - Setting
+     - Description
+   * - **full_scheme yes|no**
+     - Use ``mpg123_scan()`` on database update?  This is expensive
+       because it reads and parses the whole file (therefore disabled
+       by default), but is the only way to get a reliable song
+       duration.
 
 opus
 ----
@@ -593,6 +603,32 @@ sndfile
 -------
 
 Decodes WAV and AIFF files using `libsndfile <http://www.mega-nerd.com/libsndfile/>`_.
+
+vgmstream
+---------
+
+Decodes various video game music file formats using `vgmstream <https://vgmstream.org/>`_.
+
+.. list-table::
+   :widths: 20 80
+   :header-rows: 1
+
+   * - Setting
+     - Description
+   * - **ignore_loop yes|no**
+     - Ignore file loop points.
+   * - **force_loop yes|no**
+     - Loop the whole file if no loop points are present.
+   * - **really_force_loop yes|no**
+     - Loop the whole file even if loop points are present.
+   * - **ignore_fade yes|no**
+     - Don't fade out after looping.
+   * - **loop_count**
+     - The number of times to loop. Fractional values are allowed. Defaults to 2.
+   * - **fade_time**
+     - The fade period after the target loop count. Defaults to 10.
+   * - **fade_delay**
+     - The fade delay after the target loop count. Defaults to 0.
 
 
 vorbis
@@ -1417,20 +1453,6 @@ Reads :file:`.pls` playlist files.
 rss
 ---
 Reads music links from :file:`.rss` files.
-
-soundcloud
-----------
-
-Download playlist from SoundCloud. It accepts URIs starting with soundcloud://.
-
-.. list-table::
-   :widths: 20 80
-   :header-rows: 1
-
-   * - Setting
-     - Description
-   * - **apikey KEY**
-     - An API key to access the SoundCloud servers.
 
 xspf
 ----

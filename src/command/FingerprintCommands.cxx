@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright The Music Player Daemon Project
 
-#include "config.h"
 #include "FingerprintCommands.hxx"
 #include "Request.hxx"
 #include "LocateUri.hxx"
@@ -12,6 +11,7 @@
 #include "client/Client.hxx"
 #include "client/Response.hxx"
 #include "client/ThreadBackgroundCommand.hxx"
+#include "db/Features.hxx" // for ENABLE_DATABASE
 #include "input/InputStream.hxx"
 #include "input/LocalOpen.hxx"
 #include "input/Handler.hxx"
@@ -233,6 +233,8 @@ GetChromaprintCommand::DecodeFile()
 	}
 
 	assert(input_stream);
+
+	input_stream->SetHandler(this);
 
 	for (const auto &plugin : GetEnabledDecoderPlugins()) {
 		if (DecodeFile(suffix, *input_stream, plugin))
