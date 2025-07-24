@@ -11,9 +11,11 @@ project(
     'warning_level=3',
 
     'fmt:cpp_std=c++23',
+    'gtest:cpp_std=c++23',
 
     # If we build those libraries as Meson subproject, they shall be
     # linked statically into the MPD executable.
+    'default_library=static',
     'curl:default_library=static',
     'expat:default_library=static',
     'flac:default_library=static',
@@ -90,6 +92,7 @@ project(
     'lame:tools=disabled',
     'libmpdclient:documentation=false',
     'libmpdclient:test=false',
+    'libsndfile:examples=false',
     'libsndfile:external_libs=disabled',
     'libsndfile:mpeg=disabled',
     'libsndfile:programs=false',
@@ -307,12 +310,9 @@ if not get_option('syslog').disabled()
 endif
 
 enable_database = get_option('database')
-conf.set('ENABLE_DATABASE', enable_database)
 
 enable_inotify = get_option('inotify') and is_linux and enable_database
 conf.set('ENABLE_INOTIFY', enable_inotify)
-
-conf.set('ENABLE_DSD', get_option('dsd'))
 
 inc = include_directories(
   'src',
@@ -498,6 +498,7 @@ subdir('src/lib/expat')
 subdir('src/lib/ffmpeg')
 subdir('src/lib/gcrypt')
 subdir('src/lib/nfs')
+subdir('src/lib/nlohmann_json')
 subdir('src/lib/oss')
 subdir('src/lib/pcre')
 subdir('src/lib/pipewire')
@@ -506,7 +507,6 @@ subdir('src/lib/sndio')
 subdir('src/lib/sqlite')
 subdir('src/lib/systemd')
 subdir('src/lib/upnp')
-subdir('src/lib/yajl')
 
 subdir('src/lib/crypto')
 

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright The Music Player Daemon Project
 
-#include "config.h"
 #include "PlayerCommands.hxx"
 #include "Request.hxx"
 #include "queue/Playlist.hxx"
@@ -19,6 +18,7 @@
 #include "util/Exception.hxx"
 #include "util/Math.hxx"
 
+#include "db/Features.hxx" // for ENABLE_DATABASE
 #ifdef ENABLE_DATABASE
 #include "db/update/Service.hxx"
 #endif
@@ -49,18 +49,26 @@
 CommandResult
 handle_play(Client &client, Request args, [[maybe_unused]] Response &r)
 {
-	int song = args.ParseOptional(0, -1);
+	auto &partition = client.GetPartition();
 
-	client.GetPartition().PlayPosition(song);
+	if (args.size() > 0)
+		partition.PlayPosition(args.ParseUnsigned(0));
+	else
+		partition.PlayAny();
+
 	return CommandResult::OK;
 }
 
 CommandResult
 handle_playid(Client &client, Request args, [[maybe_unused]] Response &r)
 {
-	int id = args.ParseOptional(0, -1);
+	auto &partition = client.GetPartition();
 
-	client.GetPartition().PlayId(id);
+	if (args.size() > 0)
+		partition.PlayId(args.ParseUnsigned(0));
+	else
+		partition.PlayAny();
+
 	return CommandResult::OK;
 }
 
