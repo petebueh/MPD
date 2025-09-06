@@ -32,6 +32,8 @@
 
 #include <stdio.h>
 
+using std::string_view_literals::operator""sv;
+
 static constexpr Domain mpg123_domain("mpg123");
 
 /**
@@ -399,7 +401,8 @@ Decode(DecoderClient &client, InputStream *is,
 			off_t c = client.GetSeekFrame();
 			c = mpg123_seek(&handle, c, SEEK_SET);
 			if (c < 0)
-				client.SeekError();
+				client.SeekError(std::make_exception_ptr(FmtRuntimeError("mpg123_seek() failed: {}"sv,
+											 mpg123_strerror(&handle))));
 			else {
 				client.CommandFinished();
 				client.SubmitTimestamp(audio_format.FramesToTime<FloatDuration>(c));
@@ -474,6 +477,7 @@ Scan(mpg123_handle &handle, TagHandler &handler) noexcept
 #ifdef ENABLE_ID3TAG
 	/* prepare for using mpg123_id3_raw() later */
 	mpg123_param(&handle, MPG123_ADD_FLAGS, MPG123_STORE_RAW_ID3, 0);
+	mpg123_param(&handle, MPG123_ADD_FLAGS, MPG123_SKIP_ID3V2, 0);
 #endif
 
 	if (full_scan)

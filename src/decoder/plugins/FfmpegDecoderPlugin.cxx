@@ -543,9 +543,10 @@ FfmpegDecode(DecoderClient &client, InputStream *input,
 			/* AVSEEK_FLAG_BACKWARD asks FFmpeg to seek to
 			   the packet boundary before the seek time
 			   stamp, not after */
-			if (av_seek_frame(&format_context, audio_stream, where,
-					  AVSEEK_FLAG_ANY|AVSEEK_FLAG_BACKWARD) < 0)
-				client.SeekError();
+			if (int error = av_seek_frame(&format_context, audio_stream, where,
+						      AVSEEK_FLAG_ANY|AVSEEK_FLAG_BACKWARD);
+			    error < 0)
+				client.SeekError(std::make_exception_ptr(MakeFfmpegError(error, "av_seek_frame() failed")));
 			else {
 				codec_context.FlushBuffers();
 				min_frame = client.GetSeekFrame();
@@ -694,9 +695,21 @@ ffmpeg_protocols() noexcept
 	return protocols;
 }
 
+/* The list of supported suffixes is computed at most once because
+   it is assumed to remain unchanged during the execution. The suffixes
+   are saved in this set. An empty set encodes that the suffixes
+   have not been computed yet.
+   So in the rare cornercase where ffmpeg supports nothing, the caching
+   does not help (but also does not harm).
+*/
+static std::set<std::string, std::less<>> ffmpeg_suffixes_cache = {};
+
 static std::set<std::string, std::less<>>
 ffmpeg_suffixes() noexcept
 {
+	if (!ffmpeg_suffixes_cache.empty()) {
+		return ffmpeg_suffixes_cache;
+	}
 	std::set<std::string, std::less<>> suffixes;
 
 	void *demuxer_opaque = nullptr;
@@ -730,6 +743,7 @@ ffmpeg_suffixes() noexcept
 		}
 	}
 
+	ffmpeg_suffixes_cache = suffixes;
 	return suffixes;
 }
 

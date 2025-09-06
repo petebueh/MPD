@@ -34,6 +34,8 @@
 #include <cassert>
 #include <array>
 
+using std::string_view_literals::operator""sv;
+
 [[gnu::pure]]
 static bool
 SkipNameFS(PathTraitsFS::const_pointer name_fs) noexcept
@@ -329,7 +331,7 @@ public:
 			throw ProtocolError(ACK_ERROR_ARG, "Bad file offset");
 	}
 
-	void OnPicture(const char *mime_type,
+	void OnPicture(std::string_view mime_type,
 		       std::span<const std::byte> buffer) noexcept override {
 		if (found)
 			/* only use the first picture */
@@ -342,9 +344,9 @@ public:
 			return;
 		}
 
-		    response.Fmt("size: {}\n", buffer.size());
+		response.Fmt("size: {}\n"sv, buffer.size());
 
-		if (mime_type != nullptr)
+		if (mime_type.data() != nullptr)
 			response.Fmt("type: {}\n", mime_type);
 
 		buffer = buffer.subspan(offset);
