@@ -381,6 +381,7 @@ sources = [
   'src/client/Response.cxx',
   'src/client/ThreadBackgroundCommand.cxx',
   'src/client/ProtocolFeature.cxx',
+  'src/client/StringNormalization.cxx',
   'src/Listen.cxx',
   'src/LogInit.cxx',
   'src/ls.cxx',
@@ -470,8 +471,9 @@ subdir('src/util')
 subdir('src/cmdline')
 subdir('src/time')
 subdir('src/lib/icu')
-subdir('src/fs')
 subdir('src/io')
+subdir('src/fs')
+subdir('src/io/fs')
 subdir('src/io/uring')
 subdir('src/system')
 subdir('src/system/linux')

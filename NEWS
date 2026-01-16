@@ -1,22 +1,46 @@
 ver 0.25 (not yet released)
 * protocol
   - implement "window" parameter for command "list"
+  - new command "stringnormalization"
+  - show detailed seek errors
 * decoder
   - vgmstream: new plugin
 * output
   - pipewire: add option "reconnect_stream"
+* player
+  - support replay gain parameter in stream URI
 * switch to C++23
 * require Meson 1.2
 
-ver 0.24.5 (not yet released)
+ver 0.24.7 (2026/01/16)
+* decoder
+  - ffmpeg: allow seeking only if both AVFormatContext and InputStream allow it
+* playlist
+  - cue: strip UTF-8 byte order marker
+* Linux: disable the iowait state for io_uring
+* fix GCC 16 compiler warning
+* fix spurious linker failures
+
+ver 0.24.6 (2025/10/20)
+* decoder
+  - ffmpeg: handle "*.opus" files
+  - mpg123: another workaround for libmpg123 ID3 corruption bug
+  - opus: fix seeking in files with large OpusTags
+  - opus, vorbis: remove METADATA_BLOCK_PICTURE size limit
+
+ver 0.24.5 (2025/07/31)
 * database
   - fix disappearing playlist files
 * decoder
   - ffmpeg: handle "*.aif" files
   - mpg123: add option "full_scan"
   - mpg123: support seeking on remote files
+  - mpg123: work around libmpg123 ID3 corruption bug
+  - sidplay: add support for PSID files
 * output
   - pipewire: fix resuming playback after it was paused by "single" mode
+* Windows
+  - fix libfmt error "what(): invalid utf8"
 
 ver 0.24.4 (2025/05/20)
 * protocol
