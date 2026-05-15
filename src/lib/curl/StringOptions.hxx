@@ -4,16 +4,13 @@
 
 #pragma once
 
-#include "Headers.hxx"
-
-#include <string>
+#include <cstddef>
+#include <cstdint> // for SIZE_MAX
 
 namespace Curl {
 
-struct StringResponse {
-	unsigned status;
-	Curl::Headers headers;
-	std::string body;
+struct StringOptions {
+	std::size_t max_size = SIZE_MAX;
 };
 
 } // namespace Curl
