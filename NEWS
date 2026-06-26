@@ -4,6 +4,8 @@ ver 0.25 (not yet released)
   - new command "stringnormalization"
   - show detailed seek errors
   - support filename "cover.jxl" for "albumart" command
+  - "albumart" response includes a "file" field with the artwork path
+  - song property "RealUri"
 * decoder
   - faad: implement seeking
   - faad: output 32 bit floating point samples instead of 16 bit integer
@@ -21,6 +23,12 @@ ver 0.25 (not yet released)
   - suport netmasks in "host_permissions"
 * switch to C++23
 * require Meson 1.2
+
+ver 0.24.13 (not yet released)
+* configuration
+  - add range checks to number parser
+* output
+  - pipewire: fix file descriptor leak bug after connect failure
 
 ver 0.24.12 (2026/05/15)
 * protocol

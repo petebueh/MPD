@@ -130,14 +130,12 @@ initPermissions(const ConfigData &config)
 
 			MaskedInetAddress masked_address;
 			if (masked_address.Parse(host_s.c_str())) {
-				host_permissions.emplace_front(HostPermissions{masked_address, permissions});
+				host_permissions.emplace_front(masked_address, permissions);
 			} else {
 				for (const auto &i : Resolve(host_s.c_str(), 0,
 							     AI_PASSIVE, SOCK_STREAM)) {
-					BareInetAddress address;
-					if (address.CopyFrom(i))
-						host_permissions.emplace_front(HostPermissions{MaskedInetAddress{address, 0},
-								permissions});
+					if (masked_address.CopyFrom(i, 0))
+						host_permissions.emplace_front(masked_address, permissions);
 				}
 			}
 		});

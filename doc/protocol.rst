@@ -391,6 +391,9 @@ may contain :ref:`song tags <tags>` and other metadata, specifically:
   fractional part).  Example: ``60-120`` plays only the second minute;
   "``180`` skips the first three minutes.
 
+- ``RealUri``: if this song really refers to another file (e.g. a
+  track in a CUE sheet), then this is its URI.
+
 - ``Format``: the audio format of the song
   (or an approximation to a format supported by MPD and the
   decoder plugin being used).  When playing this file, the
@@ -1116,14 +1119,15 @@ The music database
     resides in for a file called :file:`cover.png`, :file:`cover.jpg`,
     :file:`cover.jxl`, or :file:`cover.webp`.
 
-    Returns the file size and actual number
-    of bytes read at the requested offset, followed
-    by the chunk requested as raw bytes (see :ref:`binary`), then a
-    newline and the completion code.
+    Returns the path of the artwork file (``file``), the file size
+    (``size``) and actual number of bytes read at the requested
+    offset, followed by the chunk requested as raw bytes (see
+    :ref:`binary`), then a newline and the completion code.
 
     Example::
 
      albumart foo/bar.ogg 0
+     file: foo/cover.png
      size: 1024768
      binary: 8192
      <8192 bytes>
