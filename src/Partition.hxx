@@ -19,6 +19,10 @@
 #include "ConsumeMode.hxx"
 #include "Chrono.hxx"
 
+#ifdef ENABLE_DBUS
+#include "io/UniqueFileDescriptor.hxx"
+#endif
+
 #include <string>
 #include <memory>
 
@@ -67,9 +71,25 @@ struct Partition final : QueueListener, PlayerListener, MixerListener {
 
 	ReplayGainMode replay_gain_mode = ReplayGainMode::OFF;
 
+#ifdef ENABLE_DBUS
+	UniqueFileDescriptor inhibit_idle_fd;
+#endif
+
+#ifdef ENABLE_DBUS
+	bool inhibit_idle_error = false;
+#endif
+
+	[[nodiscard]]
 	Partition(Instance &_instance,
 		  const char *_name,
 		  const PartitionConfig &_config) noexcept;
+
+	/**
+	 * Construct a new partition that inherits configuration from
+	 * an existing partition.
+	 */
+	[[nodiscard]]
+	Partition(const char *_name, const Partition &src) noexcept;
 
 	~Partition() noexcept;
 
