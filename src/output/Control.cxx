@@ -16,13 +16,16 @@
     automatically reopening the device */
 static constexpr PeriodClock::Duration REOPEN_AFTER = std::chrono::seconds(10);
 
+AudioOutputControl::AudioOutputControl(Dummy, std::string_view _name) noexcept
+	:name(_name),
+	 tags(), always_on(), always_off() {}
+
 AudioOutputControl::AudioOutputControl(std::unique_ptr<FilteredAudioOutput> _output,
 				       AudioOutputClient &_client,
 				       const ConfigBlock &block)
 	:output(std::move(_output)),
 	 name(output->GetName()),
-	 client(_client),
-	 thread(BIND_THIS_METHOD(Task)),
+	 client(&_client),
 	 tags(block.GetBlockValue("tags", true)),
 	 always_on(block.GetBlockValue("always_on", false)),
 	 always_off(block.GetBlockValue("always_off", false)),
@@ -30,59 +33,9 @@ AudioOutputControl::AudioOutputControl(std::unique_ptr<FilteredAudioOutput> _out
 {
 }
 
-AudioOutputControl::AudioOutputControl(AudioOutputControl &&src,
-				       AudioOutputClient &_client) noexcept
-	:output(src.Steal()),
-	 name(output->GetName()),
-	 client(_client),
-	 thread(BIND_THIS_METHOD(Task)),
-	 tags(src.tags),
-	 always_on(src.always_on),
-	 always_off(src.always_off)
-{
-}
-
 AudioOutputControl::~AudioOutputControl() noexcept
 {
 	StopThread();
-}
-
-std::unique_ptr<FilteredAudioOutput>
-AudioOutputControl::Steal() noexcept
-{
-	assert(!IsDummy());
-
-	/* close and disable the output */
-	{
-		std::unique_lock lock{mutex};
-		if (really_enabled && output->SupportsEnableDisable())
-			CommandWait(lock, Command::DISABLE);
-
-		enabled = really_enabled = false;
-	}
-
-	/* stop the thread */
-	StopThread();
-
-	/* now we can finally remove it */
-	const std::lock_guard protect{mutex};
-	return std::exchange(output, nullptr);
-}
-
-void
-AudioOutputControl::ReplaceDummy(std::unique_ptr<FilteredAudioOutput> new_output,
-				 bool _enabled) noexcept
-{
-	assert(IsDummy());
-	assert(new_output);
-
-	{
-		const std::lock_guard protect{mutex};
-		output = std::move(new_output);
-		enabled = _enabled;
-	}
-
-	client.ApplyEnabled();
 }
 
 const char *
@@ -170,6 +123,20 @@ AudioOutputControl::LockCommandWait(Command cmd) noexcept
 {
 	std::unique_lock lock{mutex};
 	CommandWait(lock, cmd);
+}
+
+void
+AudioOutputControl::LockDisable() noexcept
+{
+	std::unique_lock lock{mutex};
+
+	if (!output)
+		return;
+
+	if (really_enabled && output->SupportsEnableDisable())
+		CommandWait(lock, Command::DISABLE);
+
+	enabled = really_enabled = false;
 }
 
 void

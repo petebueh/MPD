@@ -11,6 +11,7 @@
 #include "thread/Cond.hxx"
 #include "time/PeriodClock.hxx"
 
+#include <cassert>
 #include <cstdint>
 #include <exception>
 #include <map>
@@ -29,12 +30,12 @@ class AudioOutputClient;
  * Controller for an #AudioOutput and its output thread.
  */
 class AudioOutputControl {
-	std::unique_ptr<FilteredAudioOutput> output;
+	const std::unique_ptr<FilteredAudioOutput> output;
 
 	/**
 	 * A copy of FilteredAudioOutput::name which we need just in
 	 * case this is a "dummy" output (output==nullptr) because
-	 * this output has been moved to another partitioncommands.
+	 * this output has been moved to another partition.
 	 */
 	const std::string name;
 
@@ -42,7 +43,7 @@ class AudioOutputControl {
 	 * The PlayerControl object which "owns" this output.  This
 	 * object is needed to signal command completion.
 	 */
-	AudioOutputClient &client;
+	AudioOutputClient *client;
 
 	/**
 	 * Source of audio data.
@@ -68,7 +69,7 @@ class AudioOutputControl {
 	 * The thread handle, or nullptr if the output thread isn't
 	 * running.
 	 */
-	Thread thread;
+	Thread thread{BIND_THIS_METHOD(Task)};
 
 	/**
 	 * This condition object wakes up the output thread after
@@ -273,19 +274,19 @@ public:
 	 */
 	mutable Mutex mutex;
 
+	struct Dummy{};
+
+	/**
+	 * Construct a "dummy" instance.
+	 */
+	explicit AudioOutputControl(Dummy, std::string_view _name) noexcept;
+
 	/**
 	 * Throws on error.
 	 */
 	AudioOutputControl(std::unique_ptr<FilteredAudioOutput> _output,
 			   AudioOutputClient &_client,
 			   const ConfigBlock &block);
-
-	/**
-	 * Move the contents of an existing instance, and convert that
-	 * existing instance to a "dummy" output.
-	 */
-	AudioOutputControl(AudioOutputControl &&src,
-			   AudioOutputClient &_client) noexcept;
 
 	~AudioOutputControl() noexcept;
 
@@ -304,7 +305,15 @@ public:
 	const char *GetLogName() const noexcept;
 
 	AudioOutputClient &GetClient() noexcept {
-		return client;
+		assert(client != nullptr);
+
+		return *client;
+	}
+
+	void SetClient(AudioOutputClient &_client) noexcept {
+		assert(source_state == SourceState::CLOSED);
+
+		client = &_client;
 	}
 
 	[[gnu::pure]]
@@ -363,14 +372,6 @@ public:
 		return last_error;
 	}
 
-	/**
-	 * Detach and return the #FilteredAudioOutput instance and,
-	 * replacing it here with a "dummy" object.
-	 */
-	std::unique_ptr<FilteredAudioOutput> Steal() noexcept;
-	void ReplaceDummy(std::unique_ptr<FilteredAudioOutput> new_output,
-			  bool _enabled) noexcept;
-
 	void StartThread();
 
 	/**
@@ -417,6 +418,11 @@ public:
 
 	std::map<std::string, std::string, std::less<>> GetAttributes() const noexcept;
 	void SetAttribute(std::string &&name, std::string &&value);
+
+	/**
+	 * Disables the device and wait for completion.
+	 */
+	void LockDisable() noexcept;
 
 	/**
 	 * Enables the device, but don't wait for completion.
