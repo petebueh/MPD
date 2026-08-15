@@ -86,6 +86,8 @@ output_mixer_get_rg(const AudioOutputControl &ao) noexcept
 int
 MultipleOutputs::GetReplayGain() const noexcept
 {
+	const std::lock_guard lock{mutex};
+	
 	unsigned ok = 0;
 	int total = 0;
 
@@ -216,7 +218,8 @@ MultipleOutputs::SetReplayGain(unsigned rg)
     SetReplayGainResult result = SetReplayGainResult::NO_MIXER;
 	std::exception_ptr error;
 
-	for (const auto &ao : outputs) {
+	const std::lock_guard lock{mutex};
+	for (auto &ao : outputs) {
 		try {
 			auto r = output_mixer_set_rg(ao, rg);
 			if (r > result)
