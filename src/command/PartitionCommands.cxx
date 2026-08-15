@@ -6,6 +6,7 @@
 #include "Instance.hxx"
 #include "Partition.hxx"
 #include "protocol/IdleFlags.hxx"
+#include "output/Control.hxx"
 #include "output/Filtered.hxx"
 #include "client/Client.hxx"
 #include "client/Response.hxx"
@@ -79,8 +80,8 @@ handle_newpartition(Client &client, Request request, Response &response)
 		return CommandResult::ERROR;
 	}
 
-	instance.partitions.emplace_back(instance, name,
-					 client.GetPartition().config);
+	instance.partitions.emplace_back(name,
+					 client.GetPartition());
 	auto &partition = instance.partitions.back();
 	partition.UpdateEffectiveReplayGainMode();
 
@@ -117,7 +118,7 @@ handle_delpartition(Client &client, Request request, Response &response)
 		return CommandResult::ERROR;
 	}
 
-	if (!partition->outputs.IsDummy()) {
+	if (!partition->outputs.empty()) {
 		response.Error(ACK_ERROR_UNKNOWN,
 			       "partition still has outputs");
 		return CommandResult::ERROR;
@@ -131,37 +132,40 @@ handle_delpartition(Client &client, Request request, Response &response)
 	return CommandResult::OK;
 }
 
+static Partition *
+FindOwningPartition(AudioOutputControl &ao) noexcept
+{
+	return static_cast<Partition *>(ao.GetMixerListener());
+}
+
 CommandResult
 handle_moveoutput(Client &client, Request request, Response &response)
 {
 	const std::string_view output_name = request[0];
 
-	auto &dest_partition = client.GetPartition();
-	auto *existing_output = dest_partition.outputs.FindByName(output_name);
-	if (existing_output != nullptr && !existing_output->IsDummy())
-		/* this output is already in the specified partition,
-		   so nothing needs to be done */
-		return CommandResult::OK;
-
-	/* find the partition which owns this output currently */
 	auto &instance = client.GetInstance();
-
-	auto *output = instance.FindOutput(output_name, dest_partition);
-	if (output == nullptr) {
+	auto *ao = instance.outputs.FindByName(output_name);
+	if (ao == nullptr) {
 		response.Error(ACK_ERROR_NO_EXIST, "No such output");
 		return CommandResult::ERROR;
 	}
 
-	const bool was_enabled = output->IsEnabled();
+	auto &dest_partition = client.GetPartition();
 
-	if (existing_output != nullptr)
-		/* move the output back where it once was */
-		existing_output->ReplaceDummy(output->Steal(),
-					      was_enabled);
-	else
-		/* copy the AudioOutputControl and add it to the output list */
-		dest_partition.outputs.AddMoveFrom(std::move(*output),
-						   was_enabled);
+	/* find the partition which owns this output currently */
+	auto *src_partition = FindOwningPartition(*ao);
+	if (src_partition == &dest_partition)
+		/* this output is already in the specified partition,
+		   so nothing needs to be done */
+		return CommandResult::OK;
+
+	const bool was_enabled = ao->IsEnabled();
+
+	if (src_partition != nullptr)
+		src_partition->outputs.ReleaseOwnership(*ao);
+
+	dest_partition.outputs.AcquireOwnership(*ao, was_enabled,
+						dest_partition.replay_gain_mode);
 
 	instance.EmitIdle(IDLE_OUTPUT);
 	return CommandResult::OK;

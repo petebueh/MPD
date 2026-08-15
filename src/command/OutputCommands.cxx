@@ -3,6 +3,7 @@
 
 #include "OutputCommands.hxx"
 #include "Request.hxx"
+#include "output/Control.hxx"
 #include "output/Print.hxx"
 #include "output/OutputCommand.hxx"
 #include "client/Client.hxx"
@@ -13,53 +14,38 @@
 #include "util/StringVerify.hxx"
 
 CommandResult
-handle_enableoutput(Client &client, Request args, Response &r)
+handle_enableoutput(Client &client, Request args, [[maybe_unused]] Response &r)
 {
 	assert(args.size() == 1);
 	unsigned device = args.ParseUnsigned(0);
 
 	auto &partition = client.GetPartition();
 
-	if (!audio_output_enable_index(partition,
-				       device)) {
-		r.Error(ACK_ERROR_NO_EXIST, "No such audio output");
-		return CommandResult::ERROR;
-	}
-
+	audio_output_enable_index(partition, device);
 	return CommandResult::OK;
 }
 
 CommandResult
-handle_disableoutput(Client &client, Request args, Response &r)
+handle_disableoutput(Client &client, Request args, [[maybe_unused]] Response &r)
 {
 	assert(args.size() == 1);
 	unsigned device = args.ParseUnsigned(0);
 
 	auto &partition = client.GetPartition();
 
-	if (!audio_output_disable_index(partition,
-					device)) {
-		r.Error(ACK_ERROR_NO_EXIST, "No such audio output");
-		return CommandResult::ERROR;
-	}
-
+	audio_output_disable_index(partition, device);
 	return CommandResult::OK;
 }
 
 CommandResult
-handle_toggleoutput(Client &client, Request args, Response &r)
+handle_toggleoutput(Client &client, Request args, [[maybe_unused]] Response &r)
 {
 	assert(args.size() == 1);
 	unsigned device = args.ParseUnsigned(0);
 
 	auto &partition = client.GetPartition();
 
-	if (!audio_output_toggle_index(partition,
-				       device)) {
-		r.Error(ACK_ERROR_NO_EXIST, "No such audio output");
-		return CommandResult::ERROR;
-	}
-
+	audio_output_toggle_index(partition, device);
 	return CommandResult::OK;
 }
 
@@ -82,13 +68,7 @@ handle_outputset(Client &client, Request request, Response &response)
 	const unsigned i = request.ParseUnsigned(0);
 
 	auto &partition = client.GetPartition();
-	auto &outputs = partition.outputs;
-	if (i >= outputs.Size()) {
-		response.Error(ACK_ERROR_NO_EXIST, "No such audio output");
-		return CommandResult::ERROR;
-	}
-
-	auto &ao = outputs.Get(i);
+	auto &ao = CheckPartitionOutput(partition, i);
 
 	const char *const name = request[1];
 	if (!IsValidAttributeName(name)) {

@@ -13,7 +13,7 @@
 #include "util/StringSplit.hxx"
 #include "Log.hxx"
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include <cassert>
 
@@ -34,7 +34,7 @@ HttpdClient::Close() noexcept
 void
 HttpdClient::LockClose() noexcept
 {
-	const std::scoped_lock protect{httpd.mutex};
+	const std::lock_guard protect{httpd.mutex};
 	Close();
 }
 
@@ -224,7 +224,7 @@ HttpdClient::GetBytesTillMetaData() const noexcept
 inline bool
 HttpdClient::TryWrite() noexcept
 {
-	const std::scoped_lock protect{httpd.mutex};
+	const std::lock_guard protect{httpd.mutex};
 
 	assert(state == State::RESPONSE);
 

@@ -36,7 +36,7 @@ public:
 	COMWorker &operator=(const COMWorker &) = delete;
 
 	template<typename Function>
-	auto Async(Function &&function) {
+	auto Async(Function &&function) noexcept {
 		using R = std::invoke_result_t<std::decay_t<Function>>;
 		auto promise = std::make_shared<Promise<R>>();
 		auto future = promise->get_future();
@@ -58,13 +58,13 @@ public:
 
 private:
 	void Finish() noexcept {
-		const std::scoped_lock lock{mutex};
+		const std::lock_guard lock{mutex};
 		running_flag = false;
 		cond.notify_one();
 	}
 
-	void Push(const std::function<void()> &function) {
-		const std::scoped_lock lock{mutex};
+	void Push(const std::function<void()> &function) noexcept {
+		const std::lock_guard lock{mutex};
 		queue.push(function);
 		cond.notify_one();
 	}

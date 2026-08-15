@@ -7,6 +7,7 @@
  */
 
 #include "State.hxx"
+#include "Control.hxx"
 #include "MultipleOutputs.hxx"
 #include "Domain.hxx"
 #include "Log.hxx"
@@ -25,9 +26,8 @@ void
 audio_output_state_save(BufferedOutputStream &os,
 			const MultipleOutputs &outputs)
 {
-	for (unsigned i = 0, n = outputs.Size(); i != n; ++i) {
-		const auto &ao = outputs.Get(i);
-		const std::scoped_lock lock{ao.mutex};
+	for (const auto &ao : outputs) {
+		const std::lock_guard lock{ao.mutex};
 
 		os.Fmt(AUDIO_DEVICE_STATE "{}:{}\n",
 		       (unsigned)ao.IsEnabled(), ao.GetName());

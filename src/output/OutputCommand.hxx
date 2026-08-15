@@ -11,27 +11,41 @@
  */
 
 struct Partition;
+class AudioOutputControl;
 
 /**
- * Enables an audio output.  Returns false if the specified output
+ * Look up an output of the specified partition and throw
+ * #ProtocolError on error.
+ */
+AudioOutputControl &
+CheckPartitionOutput(Partition &partition, unsigned idx);
+
+/**
+ * Enables an audio output.
+ *
+ * Throws #ProtocolError if the specified output
  * does not exist.
  */
-bool
+void
 audio_output_enable_index(Partition &partition,
 			  unsigned idx);
 
 /**
- * Disables an audio output.  Returns false if the specified output
+ * Disables an audio output.
+ *
+ * Throws #ProtocolError if the specified output
  * does not exist.
  */
-bool
+void
 audio_output_disable_index(Partition &partition,
 			   unsigned idx);
 
 /**
- * Toggles an audio output.  Returns false if the specified output
+ * Toggles an audio output.
+ *
+ * Throws #ProtocolError if the specified output
  * does not exist.
  */
-bool
+void
 audio_output_toggle_index(Partition &partition,
 			  unsigned idx);

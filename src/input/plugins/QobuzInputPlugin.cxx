@@ -70,7 +70,7 @@ private:
 void
 QobuzInputStream::OnQobuzSession() noexcept
 {
-	const std::scoped_lock protect{mutex};
+	const std::lock_guard protect{mutex};
 
 	try {
 		const auto session = qobuz_client->GetSession();
@@ -89,7 +89,7 @@ QobuzInputStream::OnQobuzSession() noexcept
 void
 QobuzInputStream::OnQobuzTrackSuccess(std::string url) noexcept
 {
-	const std::scoped_lock protect{mutex};
+	const std::lock_guard protect{mutex};
 	track_request.reset();
 
 	try {
@@ -103,7 +103,7 @@ QobuzInputStream::OnQobuzTrackSuccess(std::string url) noexcept
 void
 QobuzInputStream::OnQobuzTrackError(std::exception_ptr e) noexcept
 {
-	const std::scoped_lock protect{mutex};
+	const std::lock_guard protect{mutex};
 	track_request.reset();
 
 	Failed(e);
@@ -115,7 +115,7 @@ InitQobuzInput(EventLoop &event_loop, const ConfigBlock &block)
 	GlobalInitMD5();
 
 	const char *base_url = block.GetBlockValue("base_url",
-						   "http://www.qobuz.com/api.json/0.2/");
+						   "https://www.qobuz.com/api.json/0.2/");
 
 	const char *app_id = block.GetBlockValue("app_id");
 	if (app_id == nullptr)

@@ -85,6 +85,8 @@ A WebDAV client using libcurl. It is used when :code:`music_directory`
 contains a ``http://`` or ``https://`` URI, for example
 :samp:`https://the.server/dav/`.
 
+This plugin uses the configuration settings of the :ref:`CURL input plugin <input_curl>`.
+
 smbclient
 ---------
 
@@ -199,7 +201,12 @@ Allows :program:`MPD` on Linux to play audio directly from a soundcard using the
 cdio_paranoia
 -------------
 
-Plays audio CDs using libcdio. The URI has the form: "cdda://[DEVICE][/TRACK]". The simplest form cdda:// plays the whole disc in the default drive.
+Plays audio CDs using libcdio.  The URI has the form
+``cdda://[DEVICE][/TRACK]``.  Examples:
+
+- ``cdda://`` plays the whole disc in the default drive
+- ``cdda:///dev/sr0`` plays the whole disc in ``/dev/sr0``
+- ``cdda:///dev/sr0/4`` plays the fourth track
 
 .. list-table::
    :widths: 20 80
@@ -216,6 +223,8 @@ Plays audio CDs using libcdio. The URI has the form: "cdda://[DEVICE][/TRACK]". 
        performs overlapped reads, and ``full`` enables all options.
    * - **skip yes|no**
      - If set to ``no``, then never skip failed reads.
+
+.. _input_curl:
 
 curl
 ----
@@ -559,7 +568,7 @@ Decodes MP3 files using `libmpg123 <http://www.mpg123.de/>`_.
 
    * - Setting
      - Description
-   * - **full_scheme yes|no**
+   * - **full_scan yes|no**
      - Use ``mpg123_scan()`` on database update?  This is expensive
        because it reads and parses the whole file (therefore disabled
        by default), but is the only way to get a reliable song
@@ -598,6 +607,18 @@ C64 SID decoder based on `libsidplayfp <https://sourceforge.net/projects/sidplay
      - Only libsidplayfp. Roms are not embedded in libsidplayfp - please note https://sourceforge.net/p/sidplay-residfp/news/2013/01/released-libsidplayfp-100beta1/ But some SID tunes require rom images to play. Make C64 rom dumps from your own vintage gear or use rom files from Frodo or VICE emulation software tarballs. Absolute path to kernal rom image file.
    * - **basic**
      - Only libsidplayfp. Absolute path to basic rom image file.
+
+psgplay
+-------
+
+Decodes Atari SNDH files using `psgplay <https://github.com/frno7/psgplay>`_.
+
+   * - Setting
+     - Description
+   * - **default_songlength SECONDS**
+     - This is the default playing time in seconds, for songs without a duration. A value of 0 means play indefinitely.
+   * - **default_genre GENRE**
+     - Optional default genre for SNDH songs.
 
 sndfile
 -------
@@ -922,11 +943,6 @@ The `Advanced Linux Sound Architecture (ALSA) <http://www.alsa-project.org/>`_ p
        ("stop" or "pause") in DSD mode (native DSD or DoP).  This is a
        workaround for some DACs which emit noise when stopping DSD
        playback.
-   * - **thesycon_dsd_workaround yes|no**
-     - If enabled, enables a workaround for a bug in Thesycon USB
-       audio receivers.  On these devices, playing DSD512 or PCM
-       causes all subsequent attempts to play other DSD rates to fail,
-       which can be fixed by briefly playing PCM at 44.1 kHz.
    * - **allowed_formats F1 F2 ...**
      - Specifies a list of allowed audio formats, separated by a space. All items may contain asterisks as a wild card, and may be followed by "=dop" to enable DoP (DSD over PCM) for this particular format. The first matching format is used, and if none matches, MPD chooses the best fallback of this list.
        

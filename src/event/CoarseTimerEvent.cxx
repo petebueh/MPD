@@ -6,26 +6,47 @@
 #include "Loop.hxx"
 
 void
-CoarseTimerEvent::Schedule(Event::Duration d) noexcept
+CoarseTimerEvent::SetDue(Event::Duration d) noexcept
 {
-	Cancel();
+	assert(!IsPending());
 
-	due = loop.SteadyNow() + d;
+	SetDue(loop.SteadyNow() + d);
+}
+
+void
+CoarseTimerEvent::ScheduleCurrent() noexcept
+{
+	assert(!IsPending());
+
 	loop.Insert(*this);
 }
 
 void
-CoarseTimerEvent::ScheduleEarlier(Event::Duration d) noexcept
+CoarseTimerEvent::Schedule(Event::Duration d) noexcept
 {
-	const auto new_due = loop.SteadyNow() + d;
+	Cancel();
 
+	SetDue(d);
+	ScheduleCurrent();
+}
+
+void
+CoarseTimerEvent::ScheduleEarlier(Event::TimePoint t) noexcept
+{
 	if (IsPending()) {
-		if (new_due >= due)
+		if (t >= due)
 			return;
 
 		Cancel();
 	}
 
-	due = new_due;
-	loop.Insert(*this);
+	SetDue(t);
+	ScheduleCurrent();
+
+}
+
+void
+CoarseTimerEvent::ScheduleEarlier(Event::Duration d) noexcept
+{
+	ScheduleEarlier(loop.SteadyNow() + d);
 }

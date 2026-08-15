@@ -5,6 +5,7 @@
 #define MPD_INSTANCE_HXX
 
 #include "config.h"
+#include "output/AllOutputs.hxx"
 #include "db/Features.hxx" // for ENABLE_DATABASE
 #include "event/Loop.hxx"
 #include "event/Thread.hxx"
@@ -123,6 +124,8 @@ struct Instance final
 
 	std::unique_ptr<ClientList> client_list;
 
+	AllOutputs outputs;
+
 	std::list<Partition> partitions;
 
 	std::unique_ptr<StateFile> state_file;
@@ -133,6 +136,10 @@ struct Instance final
 	std::unique_ptr<StickerCleanupService> sticker_cleanup;
 
 	bool need_sticker_cleanup = false;
+#endif
+
+#ifdef ENABLE_DBUS
+	bool inhibit_idle = false;
 #endif
 
 	Instance();
@@ -173,17 +180,6 @@ struct Instance final
 
 	void BeginShutdownPartitions() noexcept;
 
-	/**
-	 * Returns the (non-dummy) audio output device with the
-	 * specified name.  Returns nullptr if the name does not
-	 * exist.
-	 *
-	 * @param excluding_partition ignore this partition
-	 */
-	[[gnu::pure]]
-	AudioOutputControl *FindOutput(std::string_view name,
-				       Partition &excluding_partition) noexcept;
-
 #ifdef ENABLE_DATABASE
 	/**
 	 * Returns the global #Database instance.  May return nullptr
@@ -214,9 +210,9 @@ struct Instance final
 	void BeginShutdownUpdate() noexcept;
 
 #ifdef ENABLE_CURL
-	void LookupRemoteTag(const char *uri) noexcept;
+	void LookupRemoteTag(std::string_view uri) noexcept;
 #else
-	void LookupRemoteTag(const char *) noexcept {
+	void LookupRemoteTag(std::string_view) noexcept {
 		/* no-op */
 	}
 #endif
@@ -240,7 +236,7 @@ private:
 
 #ifdef ENABLE_CURL
 	/* virtual methods from class RemoteTagCacheHandler */
-	void OnRemoteTag(const char *uri, const Tag &tag) noexcept override;
+	void OnRemoteTag(std::string_view uri, const Tag &tag) noexcept override;
 #endif
 
 	/* callback for #idle_monitor */

@@ -1,38 +1,52 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright The Music Player Daemon Project
 
-#ifndef OUTPUT_ALL_H
-#define OUTPUT_ALL_H
+#pragma once
 
-#include "Control.hxx"
 #include "MusicChunkPtr.hxx"
 #include "player/Outputs.hxx"
 #include "pcm/AudioFormat.hxx"
-#include "ReplayGainMode.hxx"
+#include "thread/Mutex.hxx"
+#include "util/IntrusiveList.hxx"
 #include "Chrono.hxx"
 
-#include <algorithm>
 #include <cassert>
+#include <concepts>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
+enum class ReplayGainMode : uint8_t;
 class MusicPipe;
-class EventLoop;
 class MixerListener;
+class AllOutputs;
 class AudioOutputClient;
-struct ConfigData;
-struct ReplayGainConfig;
+class AudioOutputControl;
 
 /*
  * Wrap multiple #AudioOutputControl objects a single interface which
  * keeps them synchronized.
  */
 class MultipleOutputs final : public PlayerOutputs {
+	AllOutputs &all_outputs;
+
 	AudioOutputClient &client;
 
 	MixerListener &mixer_listener;
 
-	std::vector<std::unique_ptr<AudioOutputControl>> outputs;
+	/**
+	 * Protects #output.
+	 *
+	 * The main thread is allowed to read #per_output without
+	 * holding the lock, because only the main thread is allowed
+	 * to modify it.
+	 */
+	mutable Mutex mutex;
+
+	/**
+	 * A doubly-linked list of outputs owned by this object.
+	 */
+	IntrusiveList<AudioOutputControl> outputs;
 
 	AudioFormat input_audio_format = AudioFormat::Undefined();
 
@@ -53,44 +67,24 @@ public:
 	 * Load audio outputs from the configuration file and
 	 * initialize them.
 	 */
-	MultipleOutputs(AudioOutputClient &_client,
+	MultipleOutputs(AllOutputs &_all_outputs, AudioOutputClient &_client,
 			MixerListener &_mixer_listener) noexcept;
 	~MultipleOutputs() noexcept;
 
-	void Configure(EventLoop &event_loop, EventLoop &rt_event_loop,
-		       const ConfigData &config,
-		       const ReplayGainConfig &replay_gain_config);
-
-	/**
-	 * Returns the total number of audio output devices, including
-	 * those which are disabled right now.
-	 */
-	[[gnu::pure]]
-	std::size_t Size() const noexcept {
-		return outputs.size();
+	const auto &GetAllOutputs() const noexcept {
+		return all_outputs;
 	}
 
-	/**
-	 * Returns the "i"th audio output device.
-	 */
-	const AudioOutputControl &Get(std::size_t i) const noexcept {
-		assert(i < Size());
-
-		return *outputs[i];
+	bool empty() const noexcept {
+		return outputs.empty();
 	}
 
-	AudioOutputControl &Get(std::size_t i) noexcept {
-		assert(i < Size());
-
-		return *outputs[i];
+	auto begin() const noexcept {
+		return outputs.begin();
 	}
 
-	/**
-	 * Are all outputs dummy?
-	 */
-	[[gnu::pure]]
-	bool IsDummy() const noexcept {
-		return std::all_of(outputs.begin(), outputs.end(), [](const auto &i) { return i->IsDummy(); });
+	auto end() const noexcept {
+		return outputs.end();
 	}
 
 	/**
@@ -101,16 +95,26 @@ public:
 	AudioOutputControl *FindByName(std::string_view name) noexcept;
 
 	/**
-	 * Does an audio output device with this name exist?
+	 * Does this object own the specified #AudioOutputControl instance?
+	 *
+	 * May only be called from the main thread.
 	 */
 	[[gnu::pure]]
-	bool HasName(std::string_view name) noexcept {
-		return FindByName(name) != nullptr;
-	}
+	bool Owns(const AudioOutputControl &ao) const noexcept;
 
-	void AddMoveFrom(AudioOutputControl &&src,
-			 bool enable) noexcept;
+	/**
+	 * Acquire ownership of all (orphan) outputs in #all_outputs
+	 * (but do not enable/disable them).  This is what we do with
+	 * the default partitions on startup.
+	 *
+	 * This method is unsafe for later use because it does not
+	 * care for mutex locking.
+	 */
+	void AcquireAll(ReplayGainMode replay_gain_mode) noexcept;
 
+	void AcquireOwnership(AudioOutputControl &ao, bool enable,
+			      ReplayGainMode replay_gain_mode) noexcept;
+	void ReleaseOwnership(AudioOutputControl &ao) noexcept;
 
 	void SetReplayGainMode(ReplayGainMode mode) noexcept;
 
@@ -159,13 +163,23 @@ private:
 	/**
 	 * Wait until all (active) outputs have finished the current
 	 * command.
+	 *
+	 * Caller must lock #mutex.
 	 */
 	void WaitAll() noexcept;
 
 	/**
 	 * Signals all audio outputs which are open.
+	 *
+	 * Caller must lock #mutex.
 	 */
 	void AllowPlay() noexcept;
+
+	/**
+	 * A version of _EnableDisable() that expects the caller to
+	 * lock #mutex.
+	 */
+	bool _Update(bool force) noexcept;
 
 	/**
 	 * Opens all output devices which are enabled, but closed.
@@ -180,9 +194,21 @@ private:
 	 */
 	bool IsChunkConsumed(const MusicChunk *chunk) const noexcept;
 
+	/**
+	 * A version of EnableDisable() that expects the caller to
+	 * lock #mutex.
+	 */
+	void _EnableDisable();
+
+	/**
+	 * A version of Close() that expects the caller to lock
+	 * #mutex.
+	 */
+	void _Close() noexcept;
+
 	/* virtual methods from class PlayerOutputs */
 	void EnableDisable() override;
-	void Open(const AudioFormat audio_format) override;
+	void Open(AudioFormat audio_format) override;
 	void Close() noexcept override;
 	void Release() noexcept override;
 	void Play(MusicChunkPtr chunk) override;
@@ -195,5 +221,3 @@ private:
 		return elapsed_time;
 	}
 };
-
-#endif

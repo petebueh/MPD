@@ -27,7 +27,7 @@
 
 #include <alsa/asoundlib.h>
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include <cassert>
 
@@ -220,7 +220,7 @@ AlsaInputStream::DispatchSockets() noexcept
 try {
 	non_block.DispatchSockets(*this, capture_handle);
 
-	const std::scoped_lock protect{mutex};
+	const std::lock_guard protect{mutex};
 
 	auto w = PrepareWriteBuffer();
 	const snd_pcm_uframes_t w_frames = w.size() / frame_size;

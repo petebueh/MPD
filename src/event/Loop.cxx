@@ -8,6 +8,7 @@
 #include "util/ScopeExit.hxx"
 
 #ifdef HAVE_THREADED_EVENT_LOOP
+#include "thread/ScopeUnlock.hxx"
 #include "InjectEvent.hxx"
 #endif
 
@@ -25,6 +26,8 @@ class EventLoop::UringPoll final : Uring::Operation {
 public:
 	UringPoll(EventLoop &_event_loop) noexcept
 		:event_loop(_event_loop) {}
+
+	using Uring::Operation::IsUringPending;
 
 	void Start() {
 		assert(!IsUringPending());
@@ -67,6 +70,8 @@ class EventLoop::UringWake final : Uring::Operation {
 public:
 	explicit UringWake(EventLoop &_event_loop) noexcept
 		:event_loop(_event_loop) {}
+
+	using Uring::Operation::IsUringPending;
 
 	void Start() {
 		assert(!IsUringPending());
@@ -392,6 +397,27 @@ EventLoop::Poll(Event::Duration timeout) noexcept
 
 #ifdef HAVE_URING
 
+std::size_t
+EventLoop::CountOwnUringOperations() const noexcept
+{
+	std::size_t n = 0;
+
+	n += uring_poll && uring_poll->IsUringPending();
+
+#ifdef HAVE_THREADED_EVENT_LOOP
+	n += uring_wake && uring_wake->IsUringPending();
+#endif
+
+	return n;
+}
+
+bool
+EventLoop::IsUringEmpty() const noexcept
+{
+	return !uring ||
+		!uring->HasPendingMoreThan(CountOwnUringOperations());
+}
+
 inline void
 EventLoop::UringWait(Event::Duration timeout) noexcept
 {
@@ -497,7 +523,7 @@ EventLoop::Run() noexcept
 		/* try to handle DeferEvents without WakeFD
 		   overhead */
 		{
-			const std::scoped_lock lock{mutex};
+			const std::lock_guard lock{mutex};
 			HandleInject();
 #endif
 
@@ -514,6 +540,9 @@ EventLoop::Run() noexcept
 
 		/* wait for new event */
 
+		if (quit_if_empty && IsEmpty())
+			return;
+
 		if (!next.empty())
 			timeout = Event::Duration{0};
 
@@ -525,7 +554,7 @@ EventLoop::Run() noexcept
 
 #ifdef HAVE_THREADED_EVENT_LOOP
 		{
-			const std::scoped_lock lock{mutex};
+			const std::lock_guard lock{mutex};
 			busy = true;
 		}
 #endif
@@ -557,7 +586,7 @@ EventLoop::AddInject(InjectEvent &d) noexcept
 	bool must_wake;
 
 	{
-		const std::scoped_lock lock{mutex};
+		const std::lock_guard lock{mutex};
 		if (d.IsPending())
 			return;
 
@@ -576,7 +605,7 @@ EventLoop::AddInject(InjectEvent &d) noexcept
 void
 EventLoop::RemoveInject(InjectEvent &d) noexcept
 {
-	const std::scoped_lock protect{mutex};
+	const std::lock_guard protect{mutex};
 
 	if (d.IsPending())
 		inject.erase(inject.iterator_to(d));
@@ -604,7 +633,7 @@ EventLoop::OnWake() noexcept
 		return;
 	}
 
-	const std::scoped_lock lock{mutex};
+	const std::lock_guard lock{mutex};
 	HandleInject();
 }
 

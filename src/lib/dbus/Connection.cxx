@@ -5,29 +5,50 @@
 #include "Connection.hxx"
 #include "Error.hxx"
 
-ODBus::Connection
-ODBus::Connection::GetSystem()
+#include <dbus/dbus.h>
+
+namespace ODBus {
+
+Connection::Connection(const Connection &src) noexcept
+	:c(dbus_connection_ref(src.c)) {}
+
+void
+Connection::Close() noexcept
 {
-	ODBus::Error error;
+	dbus_connection_close(c);
+}
+
+void
+Connection::Unref(DBusConnection *c) noexcept
+{
+	dbus_connection_unref(c);
+}
+
+Connection
+Connection::GetSystem()
+{
+	Error error;
 	auto *c = dbus_bus_get(DBUS_BUS_SYSTEM, error);
 	error.CheckThrow("DBus connection error");
 	return Connection(c);
 }
 
-ODBus::Connection
-ODBus::Connection::GetSystemPrivate()
+Connection
+Connection::GetSystemPrivate()
 {
-	ODBus::Error error;
+	Error error;
 	auto *c = dbus_bus_get_private(DBUS_BUS_SYSTEM, error);
 	error.CheckThrow("DBus connection error");
 	return Connection(c);
 }
 
-ODBus::Connection
-ODBus::Connection::Open(const char *address)
+Connection
+Connection::Open(const char *address)
 {
-	ODBus::Error error;
+	Error error;
 	auto *c = dbus_connection_open(address, error);
 	error.CheckThrow("DBus connection error");
 	return Connection(c);
 }
+
+} // namespace ODBus
