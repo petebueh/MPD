@@ -9,6 +9,7 @@
 #include "Stats.hxx"
 #include "client/List.hxx"
 #include "input/cache/Manager.hxx"
+#include "output/Control.hxx"
 
 #ifdef ENABLE_CURL
 #include "RemoteTagCache.hxx"
@@ -90,22 +91,6 @@ Instance::DeletePartition(Partition &partition) noexcept
 	}
 }
 
-AudioOutputControl *
-Instance::FindOutput(std::string_view name,
-		     Partition &excluding_partition) noexcept
-{
-	for (auto &partition : partitions) {
-		if (&partition == &excluding_partition)
-			continue;
-
-		auto *output = partition.outputs.FindByName(name);
-		if (output != nullptr && !output->IsDummy())
-			return output;
-	}
-
-	return nullptr;
-}
-
 #ifdef ENABLE_DATABASE
 
 const Database &
@@ -176,7 +161,7 @@ Instance::LostNeighbor([[maybe_unused]] const NeighborInfo &info) noexcept
 #ifdef ENABLE_CURL
 
 void
-Instance::LookupRemoteTag(const char *uri) noexcept
+Instance::LookupRemoteTag(const std::string_view uri) noexcept
 {
 	if (!uri_has_scheme(uri))
 		return;
@@ -189,7 +174,7 @@ Instance::LookupRemoteTag(const char *uri) noexcept
 }
 
 void
-Instance::OnRemoteTag(const char *uri, const Tag &tag) noexcept
+Instance::OnRemoteTag(const std::string_view uri, const Tag &tag) noexcept
 {
 	if (!tag.IsDefined())
 		/* boring */

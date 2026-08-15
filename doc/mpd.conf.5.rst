@@ -33,7 +33,9 @@ supported:
 - ``$XDG_CONFIG_HOME``
 - ``$XDG_MUSIC_DIR``
 - ``$XDG_CACHE_HOME``
+- ``$XDG_DATA_HOME``
 - ``$XDG_RUNTIME_DIR``
+- ``$XDG_STATE_HOME``
 
 Example:
 
@@ -152,8 +154,9 @@ File Settings
 .. confval:: playlist_directory
    :type: PATH
 
-   This specifies the directory where saved playlists are stored. If
-   you do not configure this, you cannot save playlists.
+   This specifies the directory where saved playlists are stored
+   (flat, no subdirectories).  If you do not configure this, you
+   cannot save playlists.
 
 .. confval:: state_file
    :type: PATH

@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright The Music Player Daemon Project
 
-#ifndef MPD_OUTPUT_CONTROL_HXX
-#define MPD_OUTPUT_CONTROL_HXX
+#pragma once
 
 #include "Source.hxx"
+#include "mixer/Listener.hxx"
 #include "pcm/AudioFormat.hxx"
 #include "thread/Thread.hxx"
 #include "thread/Mutex.hxx"
 #include "thread/Cond.hxx"
 #include "time/PeriodClock.hxx"
+#include "util/IntrusiveList.hxx"
 
+#include <cassert>
 #include <cstdint>
 #include <exception>
 #include <map>
@@ -28,21 +30,22 @@ class AudioOutputClient;
 /**
  * Controller for an #AudioOutput and its output thread.
  */
-class AudioOutputControl {
-	std::unique_ptr<FilteredAudioOutput> output;
+class AudioOutputControl final : public IntrusiveListHook<>, MixerListener {
+	const std::unique_ptr<FilteredAudioOutput> output;
 
-	/**
-	 * A copy of FilteredAudioOutput::name which we need just in
-	 * case this is a "dummy" output (output==nullptr) because
-	 * this output has been moved to another partitioncommands.
-	 */
-	const std::string name;
+	MixerListener *mixer_listener = nullptr;
 
 	/**
 	 * The PlayerControl object which "owns" this output.  This
 	 * object is needed to signal command completion.
+	 *
+	 * This field is left uninitialized by the constructor; it
+	 * will be initialized as soon as the output gets acquired by
+	 * the default partition.
+	 *
+	 * Protected by #mutex.
 	 */
-	AudioOutputClient &client;
+	AudioOutputClient *client;
 
 	/**
 	 * Source of audio data.
@@ -68,7 +71,7 @@ class AudioOutputControl {
 	 * The thread handle, or nullptr if the output thread isn't
 	 * running.
 	 */
-	Thread thread;
+	Thread thread{BIND_THIS_METHOD(Task)};
 
 	/**
 	 * This condition object wakes up the output thread after
@@ -277,15 +280,7 @@ public:
 	 * Throws on error.
 	 */
 	AudioOutputControl(std::unique_ptr<FilteredAudioOutput> _output,
-			   AudioOutputClient &_client,
 			   const ConfigBlock &block);
-
-	/**
-	 * Move the contents of an existing instance, and convert that
-	 * existing instance to a "dummy" output.
-	 */
-	AudioOutputControl(AudioOutputControl &&src,
-			   AudioOutputClient &_client) noexcept;
 
 	~AudioOutputControl() noexcept;
 
@@ -293,9 +288,7 @@ public:
 	AudioOutputControl &operator=(const AudioOutputControl &) = delete;
 
 	[[gnu::pure]]
-	const auto &GetName() const noexcept {
-		return name;
-	}
+	const char *GetName() const noexcept;
 
 	[[gnu::pure]]
 	const char *GetPluginName() const noexcept;
@@ -304,15 +297,38 @@ public:
 	const char *GetLogName() const noexcept;
 
 	AudioOutputClient &GetClient() noexcept {
-		return client;
+		assert(client != nullptr);
+
+		return *client;
+	}
+
+	/**
+	 * May only be called from the main thread.
+	 */
+	void LockSetMixerListener(MixerListener &_mixer_listener) noexcept {
+		const std::lock_guard lock{mutex};
+		mixer_listener = &_mixer_listener;
+	}
+
+	/**
+	 * Return the current #MixerListener.  This method exists only
+	 * as an efficient kludge to determine which #Partition this
+	 * object is currently assigned to.
+	 *
+	 * May only be called from the main thread.
+	 */
+	MixerListener *GetMixerListener() const noexcept {
+		return mixer_listener;
+	}
+
+	void SetClient(AudioOutputClient &_client) noexcept {
+		assert(source_state == SourceState::CLOSED);
+
+		client = &_client;
 	}
 
 	[[gnu::pure]]
 	Mixer *GetMixer() const noexcept;
-
-	bool IsDummy() const noexcept {
-		return !output;
-	}
 
 	bool AlwaysOff() const noexcept {
 		return always_off;
@@ -363,14 +379,6 @@ public:
 		return last_error;
 	}
 
-	/**
-	 * Detach and return the #FilteredAudioOutput instance and,
-	 * replacing it here with a "dummy" object.
-	 */
-	std::unique_ptr<FilteredAudioOutput> Steal() noexcept;
-	void ReplaceDummy(std::unique_ptr<FilteredAudioOutput> new_output,
-			  bool _enabled) noexcept;
-
 	void StartThread();
 
 	/**
@@ -419,6 +427,11 @@ public:
 	void SetAttribute(std::string &&name, std::string &&value);
 
 	/**
+	 * Disables the device and wait for completion.
+	 */
+	void LockDisable() noexcept;
+
+	/**
 	 * Enables the device, but don't wait for completion.
 	 *
 	 * Caller must lock the mutex.
@@ -442,7 +455,7 @@ public:
 	void EnableDisableAsync();
 
 	void LockEnableDisableAsync() {
-		const std::scoped_lock protect{mutex};
+		const std::lock_guard protect{mutex};
 		EnableDisableAsync();
 	}
 
@@ -481,7 +494,7 @@ public:
 	 * @param force true to ignore the #fail_timer
 	 * @return true if the device is open
 	 */
-	bool LockUpdate(const AudioFormat audio_format,
+	bool LockUpdate(AudioFormat audio_format,
 			const MusicPipe &mp,
 			bool force) noexcept;
 
@@ -517,7 +530,7 @@ public:
 	 * Locking wrapper for ClearTailChunk().
 	 */
 	void LockClearTailChunk(const MusicChunk &chunk) noexcept {
-		const std::scoped_lock lock{mutex};
+		const std::lock_guard lock{mutex};
 		ClearTailChunk(chunk);
 	}
 
@@ -649,6 +662,9 @@ private:
 	 * The OutputThread.
 	 */
 	void Task() noexcept;
-};
 
-#endif
+private:
+	/* virtual methods from class MixerListener */
+	void OnMixerVolumeChanged(Mixer &mixer, int volume) noexcept override;
+	void OnMixerChanged() noexcept override;
+};

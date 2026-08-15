@@ -2,7 +2,7 @@
 // Copyright The Music Player Daemon Project
 
 #include "SignalMonitor.hxx"
-#include "event/Features.h"
+#include "event/config.h"
 
 #ifndef _WIN32
 
@@ -72,8 +72,11 @@ private:
 	void OnSocketReady(unsigned flags) noexcept;
 };
 
-/* this should be enough - is it? */
+#ifdef NSIG
+static constexpr unsigned MAX_SIGNAL = NSIG;
+#else
 static constexpr unsigned MAX_SIGNAL = 64;
+#endif
 
 static std::array<SignalHandler, MAX_SIGNAL> signal_handlers;
 

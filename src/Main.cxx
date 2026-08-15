@@ -13,6 +13,7 @@
 #include "Listen.hxx"
 #include "client/Config.hxx"
 #include "client/List.hxx"
+#include "client/Listener.hxx"
 #include "command/AllCommands.hxx"
 #include "Partition.hxx"
 #include "tag/Config.hxx"
@@ -44,6 +45,10 @@
 #include "config/Parser.hxx"
 #include "config/PartitionConfig.hxx"
 #include "util/ScopeExit.hxx"
+
+#ifdef __linux__
+#include "io/linux/ProcStatus.hxx"
+#endif
 
 #ifdef ENABLE_DAEMON
 #include "unix/Daemon.hxx"
@@ -391,11 +396,14 @@ MainConfigured(const CommandLineOptions &options,
 
 	command_init();
 
+	instance.outputs.Configure(instance.io_thread.GetEventLoop(),
+				   instance.rtio_thread.GetEventLoop(),
+				   raw_config,
+				   partition_config.player.replay_gain);
+
+	instance.partitions.front().outputs.AcquireAll(instance.partitions.front().replay_gain_mode);
+
 	for (auto &partition : instance.partitions) {
-		partition.outputs.Configure(instance.io_thread.GetEventLoop(),
-					    instance.rtio_thread.GetEventLoop(),
-					    raw_config,
-					    partition_config.player.replay_gain);
 		partition.UpdateEffectiveReplayGainMode();
 	}
 
@@ -404,8 +412,7 @@ MainConfigured(const CommandLineOptions &options,
 		if (name == nullptr)
 			throw std::runtime_error("Missing 'name'");
 
-		instance.partitions.emplace_back(instance, name,
-						 partition_config);
+		instance.partitions.emplace_back(name, instance.partitions.front());
 	});
 
 	client_manager_init(raw_config);
@@ -416,6 +423,10 @@ MainConfigured(const CommandLineOptions &options,
 
 #ifdef ENABLE_DAEMON
 	daemonize_commit();
+#endif
+
+#ifdef ENABLE_DBUS
+	instance.inhibit_idle = raw_config.GetBool(ConfigOption::INHIBIT_IDLE, false);
 #endif
 
 #ifndef ANDROID
@@ -442,14 +453,21 @@ MainConfigured(const CommandLineOptions &options,
 
 #ifdef HAVE_ZEROCONF
 	std::unique_ptr<ZeroconfHelper> zeroconf;
-	try {
-		auto &event_loop = instance.io_thread.GetEventLoop();
-		BlockingCall(event_loop, [&](){
-			zeroconf = ZeroconfInit(raw_config, event_loop);
-		});
-	} catch (...) {
-		LogError(std::current_exception(),
-			 "Zeroconf initialization failed");
+
+	if (const unsigned port = instance.partitions.front().listener->GetEffectivePort();
+	    port > 0) {
+		try {
+			auto &event_loop = instance.io_thread.GetEventLoop();
+			BlockingCall(event_loop, [&](){
+				zeroconf = ZeroconfInit(event_loop, raw_config, port);
+			});
+		} catch (...) {
+			LogError(std::current_exception(),
+				 "Zeroconf initialization failed");
+		}
+	} else {
+		LogWarning(config_domain,
+			   "No global port, disabling zeroconf");
 	}
 
 	AtScopeExit(&zeroconf, &instance) {
@@ -693,6 +711,15 @@ mpd_main(int argc, char *argv[])
 int
 main(int argc, char *argv[]) noexcept
 try {
+#ifdef __linux__
+	if (ProcStatusThreads() > 1)
+		/* threads created by libraries before main() can
+		   cause all sorts of bugs that are difficult to
+		   analyze; bail out quickly and refuse to run if we
+		   detect such a thing */
+		throw "Background threads were detected before MPD could initialize. This is likely caused by a misbehaving library. Aborting to prevent erroneous behavior. Please report.";
+#endif
+
 	AtScopeExit() { log_deinit(); };
 
 #ifdef _WIN32

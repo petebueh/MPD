@@ -14,6 +14,15 @@
 #include "input/cache/Manager.hxx"
 #include "util/Domain.hxx"
 
+#ifdef ENABLE_DBUS
+#include "lib/dbus/AppendIter.hxx"
+#include "lib/dbus/Connection.hxx"
+#include "lib/dbus/Error.hxx"
+#include "lib/dbus/Message.hxx"
+#include "lib/dbus/PendingCall.hxx"
+#include "util/PrintException.hxx"
+#endif
+
 static constexpr Domain cache_domain("cache");
 
 Partition::Partition(Instance &_instance,
@@ -26,12 +35,18 @@ Partition::Partition(Instance &_instance,
 	 idle_monitor(instance.event_loop, BIND_THIS_METHOD(OnIdleMonitor)),
 	 global_events(instance.event_loop, BIND_THIS_METHOD(OnGlobalEvent)),
 	 playlist(config.queue.max_length, *this),
-	 outputs(pc, *this),
+	 outputs(instance.outputs, pc, *this),
 	 pc(*this, outputs,
 	    instance.input_cache.get(),
 	    config.player)
 {
 	UpdateEffectiveReplayGainMode();
+}
+
+Partition::Partition(const char *_name, const Partition &src) noexcept
+	:Partition(src.instance, _name, src.config)
+{
+	SetReplayGainMode(src.replay_gain_mode);
 }
 
 Partition::~Partition() noexcept = default;
@@ -127,7 +142,7 @@ Partition::TagModified() noexcept
 }
 
 void
-Partition::TagModified(const char *uri, const Tag &tag) noexcept
+Partition::TagModified(const std::string_view uri, const Tag &tag) noexcept
 {
 	playlist.TagModified(uri, tag);
 }
@@ -222,6 +237,43 @@ Partition::OnMixerChanged() noexcept
 	EmitIdle(IDLE_MIXER);
 }
 
+#ifdef ENABLE_DBUS
+
+static UniqueFileDescriptor
+InhibitIdle()
+{
+	// TODO make asynchronous
+
+	using namespace ODBus;
+	auto connection = Connection::GetSystem();
+	if (!connection)
+		return {};
+
+	auto msg = Message::NewMethodCall("org.freedesktop.login1",
+					  "/org/freedesktop/login1",
+					  "org.freedesktop.login1.Manager",
+					  "Inhibit");
+
+	AppendMessageIter args{*msg.Get()};
+	args.Append("idle").Append("mpd").Append("Music playback").Append("block");
+
+	auto pending = PendingCall::SendWithReply(connection, msg.Get());
+	dbus_connection_flush(connection);
+	pending.Block();
+
+	Message reply = Message::StealReply(*pending.Get());
+	reply.CheckThrowError();
+
+	ODBus::Error error;
+	int fd;
+	if (!reply.GetArgs(error, DBUS_TYPE_UNIX_FD, &fd))
+		error.Throw("Inhibit reply failed");
+
+	return UniqueFileDescriptor{AdoptTag{}, fd};
+}
+
+#endif // ENABLE_DBUS
+
 void
 Partition::OnIdleMonitor(unsigned mask) noexcept
 {
@@ -232,6 +284,22 @@ Partition::OnIdleMonitor(unsigned mask) noexcept
 
 	if (mask & (IDLE_PLAYLIST|IDLE_PLAYER|IDLE_MIXER|IDLE_OUTPUT))
 		instance.OnStateModified();
+
+#ifdef ENABLE_DBUS
+	if (instance.inhibit_idle && !inhibit_idle_error && (mask & IDLE_PLAYER) != 0) {
+		const bool is_playing = pc.GetState() == PlayerState::PLAY;
+
+		if (is_playing && !inhibit_idle_fd.IsDefined()) {
+			try {
+				inhibit_idle_fd = InhibitIdle();
+			} catch (...) {
+				inhibit_idle_error = true;
+				PrintException(std::current_exception());
+			}
+		} else if (!is_playing)
+			inhibit_idle_fd.Close();
+	}
+#endif
 }
 
 void

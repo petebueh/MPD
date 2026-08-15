@@ -4,9 +4,11 @@
 #pragma once
 
 #include <array>
+#include <span>
 
 /**
- * A statically allocated string buffer.
+ * A statically allocated string buffer.  It is designed to hold
+ * null-terminated strings.
  */
 template<typename T, std::size_t CAPACITY>
 class BasicStringBuffer {
@@ -87,6 +89,14 @@ public:
 
 	constexpr operator const_pointer() const noexcept {
 		return c_str();
+	}
+
+	constexpr operator std::span<char, CAPACITY>() noexcept {
+		return the_data;
+	}
+
+	constexpr operator std::span<char>() noexcept {
+		return the_data;
 	}
 };
 

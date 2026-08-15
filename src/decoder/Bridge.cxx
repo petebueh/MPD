@@ -135,7 +135,7 @@ DecoderBridge::FlushChunk() noexcept
 	if (!chunk->IsEmpty())
 		dc.pipe->Push(std::move(chunk));
 
-	const std::scoped_lock protect{dc.mutex};
+	const std::lock_guard protect{dc.mutex};
 	dc.client_cond.notify_one();
 }
 
@@ -197,7 +197,7 @@ DecoderBridge::GetVirtualCommand() noexcept
 DecoderCommand
 DecoderBridge::LockGetVirtualCommand() noexcept
 {
-	const std::scoped_lock protect{dc.mutex};
+	const std::lock_guard protect{dc.mutex};
 	return GetVirtualCommand();
 }
 
@@ -261,7 +261,7 @@ DecoderBridge::Ready(const AudioFormat audio_format,
 		 seekable);
 
 	{
-		const std::scoped_lock protect{dc.mutex};
+		const std::lock_guard protect{dc.mutex};
 		dc.SetReady(audio_format, seekable, duration);
 	}
 
@@ -287,7 +287,7 @@ DecoderBridge::GetCommand() noexcept
 void
 DecoderBridge::CommandFinished() noexcept
 {
-	const std::scoped_lock protect{dc.mutex};
+	const std::lock_guard protect{dc.mutex};
 
 	assert(dc.command != DecoderCommand::NONE || initial_seek_running);
 	assert(dc.command != DecoderCommand::SEEK ||
@@ -399,6 +399,19 @@ DecoderBridge::OpenUri(std::string_view uri)
 
 		cond.wait(lock);
 	}
+}
+
+bool
+DecoderBridge::Seek(InputStream &is, offset_type new_offset) noexcept
+try {
+	assert(dc.state == DecoderState::START ||
+	       dc.state == DecoderState::DECODE);
+
+	is.LockSeek(new_offset);
+	return true;
+} catch (...) {
+	error = std::current_exception();
+	return false;
 }
 
 size_t

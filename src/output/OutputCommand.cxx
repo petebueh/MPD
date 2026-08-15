@@ -9,26 +9,40 @@
  */
 
 #include "OutputCommand.hxx"
+#include "AllOutputs.hxx"
 #include "Client.hxx"
+#include "Control.hxx"
 #include "mixer/Mixer.hxx"
 #include "mixer/Memento.hxx"
 #include "mixer/Listener.hxx"
+#include "protocol/Ack.hxx"
 #include "protocol/IdleFlags.hxx"
 #include "Partition.hxx"
+#include "Instance.hxx"
 
 extern unsigned audio_output_state_version;
 
-bool
+AudioOutputControl &
+CheckPartitionOutput(Partition &partition, unsigned idx)
+{
+	auto &all_outputs = partition.instance.outputs;
+	if (idx >= all_outputs.Size())
+		throw ProtocolError(ACK_ERROR_NO_EXIST, "No such audio output");
+
+	auto &ao = all_outputs.Get(idx);
+	if (!partition.outputs.Owns(ao))
+		throw ProtocolError{ACK_ERROR_NO_EXIST, "Audio output not in this partition"};
+
+	return ao;
+}
+
+void
 audio_output_enable_index(Partition &partition,
 			  unsigned idx)
 {
-	auto &outputs = partition.outputs;
-	if (idx >= outputs.Size())
-		return false;
-
-	auto &ao = outputs.Get(idx);
+	auto &ao = CheckPartitionOutput(partition, idx);
 	if (!ao.LockSetEnabled(true))
-		return true;
+		return;
 
 	partition.EmitIdle(IDLE_OUTPUT);
 
@@ -41,21 +55,15 @@ audio_output_enable_index(Partition &partition,
 	ao.GetClient().ApplyEnabled();
 
 	++audio_output_state_version;
-
-	return true;
 }
 
-bool
+void
 audio_output_disable_index(Partition &partition,
 			   unsigned idx)
 {
-	auto &outputs = partition.outputs;
-	if (idx >= outputs.Size())
-		return false;
-
-	auto &ao = outputs.Get(idx);
+	auto &ao = CheckPartitionOutput(partition, idx);
 	if (!ao.LockSetEnabled(false))
-		return true;
+		return;
 
 	partition.EmitIdle(IDLE_OUTPUT);
 
@@ -69,19 +77,13 @@ audio_output_disable_index(Partition &partition,
 	ao.GetClient().ApplyEnabled();
 
 	++audio_output_state_version;
-
-	return true;
 }
 
-bool
+void
 audio_output_toggle_index(Partition &partition,
 			  unsigned idx)
 {
-	auto &outputs = partition.outputs;
-	if (idx >= outputs.Size())
-		return false;
-
-	auto &ao = outputs.Get(idx);
+	auto &ao = CheckPartitionOutput(partition, idx);
 	const bool enabled = ao.LockToggleEnabled();
 	partition.EmitIdle(IDLE_OUTPUT);
 
@@ -97,6 +99,4 @@ audio_output_toggle_index(Partition &partition,
 	ao.GetClient().ApplyEnabled();
 
 	++audio_output_state_version;
-
-	return true;
 }

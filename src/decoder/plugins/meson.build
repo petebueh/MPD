@@ -135,6 +135,7 @@ libmpg123_dep = dependency('libmpg123', required: get_option('mpg123'))
 decoder_features.set('ENABLE_MPG123', libmpg123_dep.found())
 if libmpg123_dep.found()
   decoder_plugins_sources += 'Mpg123DecoderPlugin.cxx'
+  decoder_plugins_dependencies += libid3tag_dep
 endif
 
 libsndfile_dep = dependency('sndfile', required: get_option('sndfile'))
@@ -164,10 +165,20 @@ if wildmidi_dep.found()
   decoder_plugins_sources += 'WildmidiDecoderPlugin.cxx'
 endif
 
-libsidplay_dep = dependency('libsidplayfp', version: '>= 1.8', required: get_option('sidplay'))
+libsidplay_dep = dependency('libsidplayfp',
+                            version: '>= 1.8',
+                            include_type: 'system',
+                            required: get_option('sidplay'))
 decoder_features.set('ENABLE_SIDPLAY', libsidplay_dep.found())
 if libsidplay_dep.found()
   decoder_plugins_sources += 'SidplayDecoderPlugin.cxx'
+  decoder_features.set('HAVE_RESID_BUILDER', c_compiler.has_header('sidplayfp/builders/residfp.h', dependencies: libsidplay_dep))
+endif
+
+libpsgplay_dep = dependency('libpsgplay', version: '>= 0.8', required: get_option('psgplay'))
+decoder_features.set('ENABLE_PSGPLAY', libpsgplay_dep.found())
+if libpsgplay_dep.found()
+  decoder_plugins_sources += 'PsgplayDecoderPlugin.cxx'
 endif
 
 decoder_plugins = static_library(
@@ -192,6 +203,7 @@ decoder_plugins = static_library(
     libmpg123_dep,
     libopus_dep,
     libsidplay_dep,
+    libpsgplay_dep,
     libsndfile_dep,
     vorbis_dep,
     ogg_dep,

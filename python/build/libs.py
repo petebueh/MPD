@@ -2,7 +2,6 @@ import re
 from os.path import abspath
 
 from build.project import Project
-from build.zlib import ZlibProject
 from build.cmake import CmakeProject
 from build.autotools import AutotoolsProject
 from build.ffmpeg import FfmpegProject
@@ -18,11 +17,16 @@ libsamplerate = CmakeProject(
     ],
 )
 
-zlib = ZlibProject(
-    ('http://zlib.net/zlib-1.3.1.tar.xz',
-     'https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.xz'),
-    '38ef96b8dfe510d42707d9c781877914792541133e1870841463bfa73f883e32',
+zlib = CmakeProject(
+    ('http://zlib.net/zlib-1.3.2.tar.xz',
+     'https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.xz'),
+    'd7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3',
     'lib/libz.a',
+    [
+        '-DZLIB_BUILD_TESTING=OFF',
+        '-DZLIB_BUILD_SHARED=OFF',
+    ],
+    patches='src/lib/zlib/patches',
 )
 
 libmodplug = AutotoolsProject(
@@ -36,8 +40,8 @@ libmodplug = AutotoolsProject(
 )
 
 libopenmpt = AutotoolsProject(
-    'https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.8.4+release.autotools.tar.gz',
-    '627f9bf11aacae615a1f2c982c7e88cb21f11b2d6f0267946f7c82c5eae4943b',
+    'https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.8.7+release.autotools.tar.gz',
+    '275c29ef47be9992f62a35fcc96f7ca05c06d2fd05c9298b8dee9f743f75b089',
     'lib/libopenmpt.a',
     [
         '--disable-shared', '--enable-static',
@@ -49,7 +53,7 @@ libopenmpt = AutotoolsProject(
         '--without-portaudio', '--without-portaudiocpp', '--without-sndfile',
         '--without-flac',
     ],
-    base='libopenmpt-0.8.3+release.autotools',
+    base='libopenmpt-0.8.7+release.autotools',
 )
 
 wildmidi = CmakeProject(
@@ -64,8 +68,8 @@ wildmidi = CmakeProject(
 )
 
 gme = CmakeProject(
-    'https://github.com/libgme/game-music-emu/archive/refs/tags/0.6.4.tar.gz',
-    'f2360feb5a32ace226c583df4faf6eff74145c81264aaea11e17a1af2f6f101a',
+    'https://github.com/libgme/game-music-emu/releases/download/0.6.5/libgme-0.6.5-src.tar.gz',
+    'a133f19278222136ba0d8c27b64a07987ba05fec9d2e6d293ccd8cabdd97ddbb',
     'lib/libgme.a',
     [
         '-DBUILD_SHARED_LIBS=OFF',
@@ -75,12 +79,12 @@ gme = CmakeProject(
         '-DGME_ZLIB=OFF',
         '-DZLIB_INCLUDE_DIR=OFF',
     ],
-    base='game-music-emu-0.6.4',
+    base='libgme-0.6.5',
 )
 
 ffmpeg = FfmpegProject(
-    'http://ffmpeg.org/releases/ffmpeg-8.0.1.tar.xz',
-    '05ee0b03119b45c0bdb4df654b96802e909e0a752f72e4fe3794f487229e5a41',
+    'https://ffmpeg.org/releases/ffmpeg-9.0.tar.xz',
+    '7f607a00dd0d28a729d5a4811205812eef01cf6ef6155025febb6f36a9062d52',
     'lib/libavcodec.a',
     [
         '--disable-shared', '--enable-static',
@@ -511,7 +515,6 @@ ffmpeg = FfmpegProject(
         '--disable-decoder=vp9_qsv',
         '--disable-decoder=vp9_rkmpp',
         '--disable-decoder=vp9_v4l2m2m',
-        '--disable-decoder=vp9_vucid',
         '--disable-decoder=vplayer',
         '--disable-decoder=vqa',
         '--disable-decoder=webvtt',
@@ -551,7 +554,6 @@ ffmpeg = FfmpegProject(
         '--disable-bsf=mjpeg2jpeg',
         '--disable-bsf=opus_metadata',
         '--disable-bsf=pgs_frame_merge',
-        '--disable-bsf=prores',
         '--disable-bsf=text2movsub',
         '--disable-bsf=vp9_metadata',
         '--disable-bsf=vp9_raw_reorder',
@@ -560,9 +562,20 @@ ffmpeg = FfmpegProject(
     ],
 )
 
+libmpg123 = AutotoolsProject(
+    'https://mpg123.de/download/mpg123-1.33.7.tar.bz2',
+    '31d0e35a4ca567ec9b5ebda6c3062bb4435d6d3eacd6ef0d95cadd7854dc03ee',
+    'lib/libmpg123.a',
+    [
+        '--disable-shared', '--enable-static',
+        '--disable-components', '--enable-libmpg123',
+        '--disable-modules', '--disable-debug',
+    ],
+)
+
 libnfs = AutotoolsProject(
-    'https://github.com/sahlberg/libnfs/archive/libnfs-6.0.2.tar.gz',
-    '4e5459cc3e0242447879004e9ad28286d4d27daa42cbdcde423248fad911e747',
+    'https://github.com/sahlberg/libnfs/archive/libnfs-7.0.0.tar.gz',
+    'd25c70537d60f1ab307b9cb5e9fb01acff71065fc9547b54dfaec109ba993003',
     'lib/libnfs.a',
     [
         '--disable-shared', '--enable-static',
@@ -574,6 +587,6 @@ libnfs = AutotoolsProject(
         '--disable-utils', '--disable-examples',
         '--without-libkrb5',
     ],
-    base='libnfs-libnfs-6.0.2',
+    base='libnfs-libnfs-7.0.0',
     autoreconf=True,
 )

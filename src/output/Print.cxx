@@ -7,16 +7,23 @@
  */
 
 #include "Print.hxx"
+#include "Control.hxx"
 #include "MultipleOutputs.hxx"
+#include "AllOutputs.hxx"
 #include "client/Response.hxx"
 
 #include <fmt/format.h>
 
+using std::string_view_literals::operator""sv;
+
 void
 printAudioDevices(Response &r, const MultipleOutputs &outputs)
 {
-	for (unsigned i = 0, n = outputs.Size(); i != n; ++i) {
-		const auto &ao = outputs.Get(i);
+	const auto &all_outputs = outputs.GetAllOutputs();
+	for (unsigned i = 0, n = all_outputs.Size(); i != n; ++i) {
+		const auto &ao = all_outputs.Get(i);
+		if (!outputs.Owns(ao))
+			continue;
 
 		r.Fmt("outputid: {}\n"
 		       "outputname: {}\n"
@@ -24,7 +31,7 @@ printAudioDevices(Response &r, const MultipleOutputs &outputs)
 		       "outputenabled: {}\n",
 		      i,
 		      ao.GetName(), ao.GetPluginName(),
-		      (unsigned)ao.IsEnabled());
+		      ao.IsEnabled() ? "1"sv : "0"sv);
 
 		for (const auto &[attribute, value] : ao.GetAttributes())
 			r.Fmt("attribute: {}={}\n",

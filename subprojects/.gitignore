@@ -7,7 +7,7 @@
 /fmt-*/
 /googletest-*/
 /lame-*/
-/libid3tag-*/
+/id3tag-*/
 /libmicrohttpd*
 /libmpdclient/
 /libnpupnp-*/
@@ -18,4 +18,5 @@
 /nlohmann_json-*/
 /openssl-*/
 /opus-*/
+/pcre2-*/
 /sqlite-*/

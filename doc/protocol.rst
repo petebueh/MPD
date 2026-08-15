@@ -354,6 +354,7 @@ The following tags are supported by :program:`MPD`:
   <http://id3.org/id3v2.4.0-frames>`_).
 * **comment**: a human-readable comment about this song. The exact meaning of this tag is not well-defined.
 * **disc**: the decimal disc number in a multi-disc album.
+* **discsubtitle**: the disc subtitle in a multi-disc album.
 * **label**: the name of the label or publisher.
 * **musicbrainz_artistid**: the artist id in the `MusicBrainz <https://picard.musicbrainz.org/docs/mappings/>`_ database.
 * **musicbrainz_albumid**: the album id in the `MusicBrainz <https://picard.musicbrainz.org/docs/mappings/>`_ database.
@@ -389,6 +390,9 @@ may contain :ref:`song tags <tags>` and other metadata, specifically:
   ``END`` are time stamps within the song in seconds (may contain a
   fractional part).  Example: ``60-120`` plays only the second minute;
   "``180`` skips the first three minutes.
+
+- ``RealUri``: if this song really refers to another file (e.g. a
+  track in a CUE sheet), then this is its URI.
 
 - ``Format``: the audio format of the song
   (or an approximation to a format supported by MPD and the
@@ -1113,16 +1117,17 @@ The music database
 
     This is currently implemented by searching the directory the file
     resides in for a file called :file:`cover.png`, :file:`cover.jpg`,
-    or :file:`cover.webp`.
+    :file:`cover.jxl`, or :file:`cover.webp`.
 
-    Returns the file size and actual number
-    of bytes read at the requested offset, followed
-    by the chunk requested as raw bytes (see :ref:`binary`), then a
-    newline and the completion code.
+    Returns the path of the artwork file (``file``), the file size
+    (``size``) and actual number of bytes read at the requested
+    offset, followed by the chunk requested as raw bytes (see
+    :ref:`binary`), then a newline and the completion code.
 
     Example::
 
      albumart foo/bar.ogg 0
+     file: foo/cover.png
      size: 1024768
      binary: 8192
      <8192 bytes>

@@ -57,7 +57,7 @@ and unpack it (or `clone the git repository
 
 In any case, you need:
 
-* a C++23 compiler (e.g. GCC 12 or clang 14)
+* a C++23 compiler (e.g. GCC 14 or clang 19)
 * `Meson 1.2 <http://mesonbuild.com/>`__ and `Ninja
   <https://ninja-build.org/>`__
 * pkg-config 
@@ -165,6 +165,7 @@ You need:
 * `Meson 1.2 <http://mesonbuild.com/>`__ and `Ninja
   <https://ninja-build.org/>`__
 * cmake
+* nasm (for the FFmpeg build)
 * pkg-config
 * quilt
 
@@ -832,7 +833,7 @@ By default, all clients are unauthenticated and have a full set of permissions. 
 :code:`local_permissions` may be used to assign other permissions to clients connecting on a local socket.
 
 :code:`host_permissions` may be used to assign permissions to clients
-with a certain IP address.
+with a certain IP address (which may have a subnet mask).
 
 :code:`password` allows the client to send a password to gain other permissions. This option may be specified multiple times with different passwords.
 
@@ -844,7 +845,9 @@ Example:
 
     default_permissions "read"
     host_permissions "192.168.0.100 read,add,control,admin"
+    host_permissions "192.168.1.0/24 read,control"
     host_permissions "2003:1234:4567::1 read,add,control,admin"
+    host_permissions "fe80::/16 read"
     password "the_password@read,add,control"
     password "the_admin_password@read,add,control,admin"
 
@@ -874,6 +877,11 @@ Other Settings
          metadata_to_use "+comment"
 
        Section :ref:`tags` contains a list of supported tags.
+   * - **inhibit_idle yes|no**
+     - ``yes`` enables `systemd idle inhibitor locks
+       <https://systemd.io/INHIBITOR_LOCKS/>`__ while MPD is playing
+       something.  That means the computer will not automatically
+       suspend or shut down during playback.
 
 The State File
 ^^^^^^^^^^^^^^
@@ -1321,8 +1329,7 @@ ICY-MetaData
 ------------
 
 Some MP3 streams send information about the current song with a
-protocol named `"ICY-MetaData"
-<http://www.smackfu.com/stuff/programming/shoutcast.html>`_.
+protocol named "ICY-MetaData".
 :program:`MPD` makes its ``StreamTitle`` value available as ``Title``
 tag.
 

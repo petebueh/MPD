@@ -16,11 +16,11 @@
 #include "fs/AllocatedPath.hxx"
 #include "thread/Mutex.hxx"
 #include "thread/Cond.hxx"
+#include "thread/ScopeUnlock.hxx"
 #include "event/Loop.hxx"
 #include "event/Call.hxx"
 #include "event/InjectEvent.hxx"
 #include "event/CoarseTimerEvent.hxx"
-#include "util/ASCII.hxx"
 #include "util/StringCompare.hxx"
 
 extern "C" {
@@ -28,7 +28,7 @@ extern "C" {
 #include <nfsc/libnfs-raw-nfs.h>
 }
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include <cassert>
 #include <string>
@@ -37,6 +37,8 @@ extern "C" {
 #include <fcntl.h>
 
 using std::string_view_literals::operator""sv;
+
+static constexpr std::size_t MAX_NFS_DIRECTORY_ENTRIES = 256 * 1024;
 
 class NfsStorage final
 	: public Storage, NfsLease {
@@ -67,7 +69,7 @@ class NfsStorage final
 	std::exception_ptr last_exception;
 
 public:
-	NfsStorage(const char *_url, NfsConnection &_connection)
+	NfsStorage(std::string_view _url, NfsConnection &_connection)
 		:url(_url),
 		 base(fmt::format("nfs://{}{}"sv, _connection.GetServer(), _connection.GetExportName())),
 		 connection(&_connection),
@@ -140,7 +142,7 @@ private:
 	void SetState(State _state) noexcept {
 		assert(GetEventLoop().IsInside());
 
-		const std::scoped_lock protect{mutex};
+		const std::lock_guard protect{mutex};
 		state = _state;
 		cond.notify_all();
 	}
@@ -148,7 +150,7 @@ private:
 	void SetState(State _state, std::exception_ptr &&e) noexcept {
 		assert(GetEventLoop().IsInside());
 
-		const std::scoped_lock protect{mutex};
+		const std::lock_guard protect{mutex};
 		state = _state;
 		last_exception = std::move(e);
 		cond.notify_all();
@@ -179,7 +181,7 @@ private:
 			case State::INITIAL:
 				/* schedule connect */
 				{
-					const ScopeUnlock unlock(mutex);
+					const ScopeUnlock unlock{lock};
 					defer_connect.Schedule();
 				}
 
@@ -384,6 +386,7 @@ NfsListDirectoryOperation::CollectEntries(struct nfsdir *dir)
 {
 	assert(entries.empty());
 
+	std::size_t n = 0;
 	const struct nfsdirent *ent;
 	while ((ent = connection.ReadDirectory(dir)) != nullptr) {
 #ifdef _WIN32
@@ -400,6 +403,10 @@ NfsListDirectoryOperation::CollectEntries(struct nfsdir *dir)
 		try {
 			entries.emplace_front(name_fs.ToUTF8Throw());
 			Copy(entries.front().info, *ent);
+
+			if (++n >= MAX_NFS_DIRECTORY_ENTRIES)
+				/* too many already - stop here */
+				break;
 		} catch (...) {
 			/* ignore files whose name cannot be converted
 			   to UTF-8 */
@@ -421,15 +428,15 @@ NfsStorage::OpenDirectory(std::string_view uri_utf8)
 }
 
 static std::unique_ptr<Storage>
-CreateNfsStorageURI(EventLoop &event_loop, const char *base)
+CreateNfsStorageURI(EventLoop &event_loop, std::string_view base)
 {
-	if (!StringStartsWithCaseASCII(base, "nfs://"sv))
+	if (!StringStartsWithIgnoreCase(base, "nfs://"sv))
 		return nullptr;
 
 	nfs_init(event_loop);
 
 	try {
-		auto &connection = nfs_make_connection(base);
+		auto &connection = nfs_make_connection(std::string{base}.c_str());
 		nfs_set_base(connection.GetServer(), connection.GetExportName());
 
 		return std::make_unique<NfsStorage>(base, connection);
