@@ -9,6 +9,7 @@
 #include "Stats.hxx"
 #include "client/List.hxx"
 #include "input/cache/Manager.hxx"
+#include "output/Control.hxx"
 
 #ifdef ENABLE_CURL
 #include "RemoteTagCache.hxx"
@@ -88,22 +89,6 @@ Instance::DeletePartition(Partition &partition) noexcept
 			break;
 		}
 	}
-}
-
-std::pair<Partition *, std::size_t>
-Instance::FindOutput(std::string_view name,
-		     Partition &excluding_partition) noexcept
-{
-	for (auto &partition : partitions) {
-		if (&partition == &excluding_partition)
-			continue;
-
-		const auto idx = partition.outputs.FindIndexByName(name);
-		if (idx >= 0 && !partition.outputs.Get(idx).IsDummy())
-			return {&partition, idx};
-	}
-
-	return {};
 }
 
 #ifdef ENABLE_DATABASE
