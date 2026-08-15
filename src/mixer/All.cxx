@@ -90,7 +90,7 @@ MultipleOutputs::GetReplayGain() const noexcept
 	int total = 0;
 
 	for (const auto &ao : outputs) {
-		int rg = output_mixer_get_rg(*ao);
+		int rg = output_mixer_get_rg(ao);
 		if (rg >= 0) {
 			total += rg;
 			++ok;
@@ -218,7 +218,7 @@ MultipleOutputs::SetReplayGain(unsigned rg)
 
 	for (const auto &ao : outputs) {
 		try {
-			auto r = output_mixer_set_rg(*ao, rg);
+			auto r = output_mixer_set_rg(ao, rg);
 			if (r > result)
 				result = r;
 		} catch (...) {
