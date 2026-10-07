@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 // author: Max Kellermann <max.kellermann@gmail.com>
 
-#include "UriRelative.hxx"
-#include "UriExtract.hxx"
-#include "StringAPI.hxx"
-#include "StringCompare.hxx"
-#include "Compiler.h"
+#include "Relative.hxx"
+#include "Extract.hxx"
+#include "util/StringAPI.hxx"
+#include "util/StringCompare.hxx"
+#include "util/Compiler.h"
+
+#include <fmt/format.h>
 
 #include <cassert>
 
@@ -64,14 +66,18 @@ uri_apply_base(std::string_view uri, std::string_view base) noexcept
 	return out;
 }
 
-static void
-ClearFilename(std::string_view &path) noexcept
+/**
+ * Return the URI path without the last segment (but leave the
+ * trailing slash).
+ */
+static constexpr std::string_view
+UriPathWithoutFilename(std::string_view path) noexcept
 {
 	const auto slash = path.rfind('/');
 	if (slash != path.npos)
-		path = path.substr(0, slash + 1);
+		return path.substr(0, slash + 1);
 	else
-		path = path.substr(0, 0);
+		return path.substr(0, 0);
 }
 
 static void
@@ -81,20 +87,19 @@ StripLeadingSlashes(std::string_view &s) noexcept
 		s.remove_prefix(1);
 }
 
-static bool
-ConsumeLastSegment(std::string_view &path) noexcept
+/**
+ * Return the URI path (ending with a slash) without the last segment
+ * (still ending with a slash).  May return an empty string no slash
+ * remains.
+ */
+static constexpr std::string_view
+UriPathWithoutLastSegment(std::string_view path) noexcept
 {
 	assert(!path.empty());
 	assert(path.back() == '/');
 
 	path.remove_suffix(1);
-
-	const auto slash = path.rfind('/');
-	if (slash == path.npos)
-		return false;
-
-	path = path.substr(0, slash + 1);
-	return true;
+	return UriPathWithoutFilename(path);
 }
 
 static bool
@@ -106,8 +111,17 @@ ConsumeSpecial(std::string_view &relative_path, std::string_view &base_path) noe
 		} else if (SkipPrefix(relative_path, "../"sv)) {
 			StripLeadingSlashes(relative_path);
 
-			if (!ConsumeLastSegment(base_path))
+			if (base_path.size() <= 1)
+				/* base_path is either already empty
+				   or consists of a single slash: we
+				   can't strip the last segment,
+				   therefore fail */
 				return false;
+
+			base_path = UriPathWithoutLastSegment(base_path);
+
+			/* if base_path did not start with a slash, it
+			   may now be empty */
 		} else if (relative_path == "."sv) {
 			relative_path.remove_prefix(1);
 			return true;
@@ -123,7 +137,7 @@ uri_apply_relative(std::string_view relative_uri,
 	if (relative_uri.empty())
 		return std::string(base_uri);
 
-	if (uri_has_scheme(relative_uri))
+	if (UriHasScheme(relative_uri))
 		return std::string(relative_uri);
 
 	// TODO: support double slash at beginning of relative_uri
@@ -141,14 +155,12 @@ uri_apply_relative(std::string_view relative_uri,
 			/* there's no URI path - simply append uri */
 			i = base_uri.length();
 
-		std::string result{base_uri.substr(0, i)};
-		result.append(relative_uri);
-		return result;
+		return fmt::format("{}{}"sv, base_uri.substr(0, i), relative_uri);
 	}
 
 	std::string_view relative_path{relative_uri};
 
-	const auto _base_path = uri_get_path(base_uri);
+	const auto _base_path = UriGetPath(base_uri);
 	if (_base_path.data() == nullptr) {
 		std::string result(base_uri);
 		if (relative_path.front() != '/')
@@ -161,14 +173,11 @@ uri_apply_relative(std::string_view relative_uri,
 		return result;
 	}
 
-	std::string_view base_path(_base_path);
-	ClearFilename(base_path);
+	const std::string_view base_prefix = {base_uri.data(), _base_path.data()};
+	std::string_view base_path = UriPathWithoutFilename(_base_path);
 
 	if (!ConsumeSpecial(relative_path, base_path))
 		return {};
 
-	std::string result(base_uri.data(), _base_path.data());
-	result.append(base_path);
-	result.append(relative_path);
-	return result;
+	return fmt::format("{}{}{}"sv, base_prefix, base_path, relative_path);
 }

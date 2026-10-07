@@ -8,6 +8,7 @@
 #include "Error.hxx"
 #include "lib/curl/Global.hxx"
 #include "lib/curl/Handler.hxx"
+#include "lib/curl/HttpStatusError.hxx"
 #include "lib/curl/Request.hxx"
 #include "event/Call.hxx"
 #include "event/InjectEvent.hxx"
@@ -16,6 +17,8 @@
 #include "util/SpanCast.hxx"
 
 #include <upnptools.h>
+
+#include <stdexcept>
 
 #include <stdlib.h>
 
@@ -78,6 +81,14 @@ private:
 	void OnError(std::exception_ptr e) noexcept override;
 };
 
+/**
+ * Device descriptions are small XML documents; this limit protects
+ * against (malicious) servers sending endless responses.
+ */
+static constexpr std::size_t MAX_DEVICE_DESCRIPTION_SIZE = 256 * 1024;
+
+static constexpr std::chrono::seconds DEVICE_DESCRIPTION_TIMEOUT{30};
+
 UPnPDeviceDirectory::Downloader::Downloader(UPnPDeviceDirectory &_parent,
 					    const UpnpDiscovery &disco)
 	:defer_start_event(_parent.GetEventLoop(),
@@ -88,6 +99,8 @@ UPnPDeviceDirectory::Downloader::Downloader(UPnPDeviceDirectory &_parent,
 	 expires(std::chrono::seconds(UpnpDiscovery_get_Expires(&disco))),
 	 request(*parent.curl, url.c_str(), *this)
 {
+	request.GetEasy().SetTimeout(DEVICE_DESCRIPTION_TIMEOUT);
+
 	const std::lock_guard protect{parent.mutex};
 	parent.downloaders.push_back(*this);
 }
@@ -104,15 +117,17 @@ void
 UPnPDeviceDirectory::Downloader::OnHeaders(unsigned status,
 					   Curl::Headers &&)
 {
-	if (status != 200) {
-		Destroy();
-		return;
-	}
+	if (status != 200)
+		throw HttpStatusError(status,
+				      "Failed to download UPnP device description");
 }
 
 void
 UPnPDeviceDirectory::Downloader::OnData(std::span<const std::byte> src)
 {
+	if (data.size() + src.size() > MAX_DEVICE_DESCRIPTION_SIZE)
+		throw std::runtime_error{"UPnP device description is too large"};
+
 	data.append(ToStringView(src));
 }
 
@@ -282,8 +297,13 @@ UPnPDeviceDirectory::ExpireDevices() noexcept
 		return expired;
 	});
 
-	if (didsomething)
-		Search();
+	if (didsomething) {
+		try {
+			Search();
+		} catch (...) {
+			LogError(std::current_exception());
+		}
+	}
 }
 
 UPnPDeviceDirectory::UPnPDeviceDirectory(EventLoop &event_loop,

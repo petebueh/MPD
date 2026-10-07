@@ -40,8 +40,8 @@ libmodplug = AutotoolsProject(
 )
 
 libopenmpt = AutotoolsProject(
-    'https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.8.7+release.autotools.tar.gz',
-    '275c29ef47be9992f62a35fcc96f7ca05c06d2fd05c9298b8dee9f743f75b089',
+    'https://lib.openmpt.org/files/libopenmpt/src/libopenmpt-0.8.8+release.autotools.tar.gz',
+    'd4f00ddd29eecb9594bda7be76c13aaa2de1dadc18391c3e905f728ec9af8822',
     'lib/libopenmpt.a',
     [
         '--disable-shared', '--enable-static',
@@ -53,12 +53,12 @@ libopenmpt = AutotoolsProject(
         '--without-portaudio', '--without-portaudiocpp', '--without-sndfile',
         '--without-flac',
     ],
-    base='libopenmpt-0.8.7+release.autotools',
+    base='libopenmpt-0.8.8+release.autotools',
 )
 
 wildmidi = CmakeProject(
-    'https://github.com/Mindwerks/wildmidi/releases/download/wildmidi-0.4.6/wildmidi-0.4.6.tar.gz',
-    '24ca992639ce76efa3737029fceb3672385d56e2ac0a15d50b40cc12d26e60de',
+    'https://github.com/Mindwerks/wildmidi/releases/download/wildmidi-0.5.0/wildmidi-0.5.0.tar.gz',
+    '84a0d75fa2ea818995a57a7ccbfdda8c1042a39f388d5561b767a2c275b1b1eb',
     'lib/libWildMidi.a',
     [
         '-DBUILD_SHARED_LIBS=OFF',
@@ -83,8 +83,8 @@ gme = CmakeProject(
 )
 
 ffmpeg = FfmpegProject(
-    'https://ffmpeg.org/releases/ffmpeg-9.0.tar.xz',
-    '7f607a00dd0d28a729d5a4811205812eef01cf6ef6155025febb6f36a9062d52',
+    'https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz',
+    '8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e',
     'lib/libavcodec.a',
     [
         '--disable-shared', '--enable-static',
@@ -574,8 +574,8 @@ libmpg123 = AutotoolsProject(
 )
 
 libnfs = AutotoolsProject(
-    'https://github.com/sahlberg/libnfs/archive/libnfs-7.0.0.tar.gz',
-    'd25c70537d60f1ab307b9cb5e9fb01acff71065fc9547b54dfaec109ba993003',
+    'https://github.com/sahlberg/libnfs/archive/libnfs-8.0.0.tar.gz',
+    'bc91216e927a85142b5de611c7f711558e02119a7daad67620ea631634038350',
     'lib/libnfs.a',
     [
         '--disable-shared', '--enable-static',
@@ -587,6 +587,6 @@ libnfs = AutotoolsProject(
         '--disable-utils', '--disable-examples',
         '--without-libkrb5',
     ],
-    base='libnfs-libnfs-7.0.0',
+    base='libnfs-libnfs-8.0.0',
     autoreconf=True,
 )

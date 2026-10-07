@@ -3,7 +3,7 @@
 
 #include "Traits.hxx"
 #include "util/StringCompare.hxx"
-#include "util/UriExtract.hxx"
+#include "uri/Extract.hxx"
 
 #include <string.h>
 
@@ -54,7 +54,7 @@ GetBasePathImpl(typename Traits::string_view p) noexcept
 {
 	auto sep = Traits::FindLastSeparator(p);
 	return sep != nullptr
-		? typename Traits::string_view{sep, p.data() + p.size()}
+		? typename Traits::string_view{sep + 1, p.data() + p.size()}
 		: p;
 }
 
@@ -222,7 +222,7 @@ PathTraitsUTF8::Build(string_view a, string_view b) noexcept
 bool
 PathTraitsUTF8::IsAbsoluteOrHasScheme(const_pointer p) noexcept
 {
-	return IsAbsolute(p) || uri_has_scheme(p);
+	return IsAbsolute(p) || UriHasScheme(p);
 }
 
 PathTraitsUTF8::const_pointer

@@ -1,8 +1,8 @@
 /*
- * Unit tests for src/util/UriRelative.hxx
+ * Unit tests for src/uri/Relative.hxx
  */
 
-#include "util/UriRelative.hxx"
+#include "uri/Relative.hxx"
 
 #include <gtest/gtest.h>
 
@@ -70,6 +70,9 @@ TEST(UriRelative, ApplyRelative)
 		{ "/foo", "/bar/", "/foo" },
 		{ "foo", "/bar/", "/bar/foo" },
 		{ "../foo", "/bar/", "/foo" },
+		{ "../foo", "bar/baz", "foo" },
+		{ "../../foo", "bar/baz", "" },
+		{ "../foo", "bar", "" },
 		{ "./foo", "/bar/", "/bar/foo" },
 		{ "./../foo", "/bar/", "/foo" },
 		{ ".././foo", "/bar/", "/foo" },

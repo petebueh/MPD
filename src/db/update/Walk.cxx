@@ -19,9 +19,9 @@
 #include "input/InputStream.hxx"
 #include "input/Error.hxx"
 #include "input/WaitReady.hxx"
+#include "uri/Extract.hxx"
 #include "util/StringCompare.hxx"
 #include "util/StringSplit.hxx"
-#include "util/UriExtract.hxx"
 #include "Log.hxx"
 
 #include <cassert>
@@ -31,6 +31,8 @@
 
 #include <string.h>
 #include <stdlib.h>
+
+using std::string_view_literals::operator""sv;
 
 UpdateWalk::UpdateWalk(const UpdateConfig &_config,
 		       EventLoop &_loop, DatabaseListener &_listener,
@@ -180,6 +182,23 @@ FindAncestorLoop(Storage &storage, Directory *parent,
 	return 0;
 }
 
+/**
+ * The maximum nesting depth of directories.  This limit protects
+ * against stack overflows caused by (malicious) remote #Storage
+ * implementations which present a directory tree of unlimited depth.
+ */
+static constexpr unsigned MAX_DIRECTORY_DEPTH = 64;
+
+[[gnu::pure]]
+static unsigned
+GetDepth(const Directory &directory) noexcept
+{
+	unsigned depth = 0;
+	for (const Directory *i = directory.parent; i != nullptr; i = i->parent)
+		++depth;
+	return depth;
+}
+
 inline bool
 UpdateWalk::UpdateRegularFile(Directory &directory,
 			      const char *name,
@@ -204,6 +223,13 @@ try {
 	if (info.IsRegular()) {
 		UpdateRegularFile(directory, name, info);
 	} else if (info.IsDirectory()) {
+		if (GetDepth(directory) >= MAX_DIRECTORY_DEPTH) {
+			FmtError(update_domain,
+				 "Directory nesting too deep: {:?}/{:?}"sv,
+				 directory.GetPath(), name);
+			return;
+		}
+
 		if (FindAncestorLoop(storage, &directory,
 					info.inode, info.device))
 			return;
