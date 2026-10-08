@@ -62,7 +62,7 @@ private:
 };
 
 template <typename T>
-class WinFutureState {
+class WinFutureState final {
 private:
 	mutable CriticalSection mutex;
 	WindowsCond condition;
@@ -98,7 +98,7 @@ public:
 		return WinFutureStatus::timeout;
 	}
 
-	virtual T &get_value() {
+	T &get_value() {
 		std::unique_lock lock{mutex};
 		if (retrieved) {
 			throw WinFutureError(WinFutureErrc::future_already_retrieved);
