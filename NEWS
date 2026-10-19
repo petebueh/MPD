@@ -15,6 +15,8 @@ ver 0.25 (not yet released)
 * output
   - alsa: use hardware pause if available
   - pipewire: add option "reconnect_stream"
+  - pipewire don't discard buffered audio on pause
+  - pulse: don't discard buffered audio on pause
   - wasapi: detect device changes
 * mixer
   - fix mixer idle events on non-default partitions
@@ -33,7 +35,7 @@ ver 0.25 (not yet released)
 * switch to C++23
 * require Meson 1.2
 
-ver 0.24.16 (not yet released)
+ver 0.24.16 (2026/10/17)
 * protocol
   - fix underflow in relative range moves
   - reject empty ranges in "move"
@@ -44,6 +46,8 @@ ver 0.24.16 (not yet released)
   - fix double-free crash bug with "getfingerprint"
   - sanitize tag values printed by "lsinfo" on stream URIs
   - validate the picture MIME type for "readpicture"
+  - check local file access for "albumart"
+  - validate URIs in "playlistadd" with position
 * neighbor
   - smbclient: validate server names and comments
   - udisks: fix crash bug
@@ -56,6 +60,7 @@ ver 0.24.16 (not yet released)
   - curl: implement a HTTP timeout
   - nfs: fix use-after-free bug
   - nfs: skip invalid file names
+  - nfs: delete unused transient connections
   - smbclient: skip invalid file names
   - udisks: reject ".." in the relative volume path
   - udisks: don't unmount volumes which were already mounted
@@ -66,8 +71,11 @@ ver 0.24.16 (not yet released)
   - alsa: reject dangerous ALSA device names
   - cache: fix use-after-free bug
   - cache: fix deadlock bug
+  - cache: fix data race
   - cdio_paranoia: fix memory leak
   - cdio_paranoia: open only hardware drives
+  - curl: fix the broken "connect_timeout" setting
+  - curl: enable TLS verification on Android
   - ffmpeg: restrict nested protocols of "hls+" URIs
   - nfs: fix use-after-free bug
   - qobuz: limit the size of API responses
@@ -114,16 +122,19 @@ ver 0.24.16 (not yet released)
   - reject extreme resampling ratios
 * output
   - httpd: fix stream corruption with large tags
+  - httpd: fix out-of-bounds read
   - httpd: add missing mutex lock
   - pipewire: limit the ring buffer size
   - pipewire: validate the DSD interleave
   - snapcast: fix integer overflow
   - snapcast: limit the client wait time
   - snapcast: limit the chunk queue size
+  - osx: increase the buffer to 500 ms to fix dropouts above 48 kHz
 * player
   - don't cross-fade DSD
 * avahi: fix use-after-free bug
 * state file: make the state file readable only by the owner
+* log: don't follow symlinks when opening the log file
 * validate the pid in "mpd --kill"
 * Windows
   - fix crash bug during charset conversion
