@@ -11,6 +11,7 @@
 #include "thread/Cond.hxx"
 #include "util/Domain.hxx"
 #include "util/ByteOrder.hxx"
+#include "util/ByteSizes.hxx"
 #include "mixer/plugins/AndroidMixerPlugin.hxx"
 #include "Log.hxx"
 
@@ -23,7 +24,7 @@
 
 class SlesOutput final : AudioOutput  {
 	static constexpr unsigned N_BUFFERS = 3;
-	static constexpr size_t BUFFER_SIZE = 65536;
+	static constexpr std::size_t BUFFER_SIZE = 64_KiB;
 
 	SLES::Object engine_object, mix_object, play_object;
 	SLES::Play play;
@@ -408,8 +409,14 @@ inline void
 SlesOutput::PlayedCallback()
 {
 	const std::lock_guard protect{mutex};
-	assert(n_queued > 0);
-	--n_queued;
+
+	/* ask OpenSL ES instead of decrementing our counter, because
+	   this callback may be invoked for a buffer that was consumed
+	   right before Cancel() cleared the queue */
+	if (SLAndroidSimpleBufferQueueState state;
+	    queue.GetState(&state) == SL_RESULT_SUCCESS)
+		n_queued = state.count;
+
 	cond.notify_one();
 }
 

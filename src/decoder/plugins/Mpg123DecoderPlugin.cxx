@@ -13,6 +13,7 @@
 #include "fs/Path.hxx"
 #include "lib/fmt/ExceptionFormatter.hxx"
 #include "lib/fmt/RuntimeError.hxx"
+#include "util/ByteSizes.hxx"
 #include "util/Domain.hxx"
 #include "util/ScopeExit.hxx"
 #include "Log.hxx"
@@ -256,13 +257,19 @@ mpd_mpg123_id3v2_extras(DecoderClient &client, const mpg123_id3v2 &id3v2) noexce
 	bool found_replay_gain = false, found_mixramp = false;
 
 	for (size_t i = 0, n = id3v2.extras; i < n; ++i) {
+		const auto &extra = id3v2.extra[i];
+		if (extra.description.p == nullptr || extra.text.p == nullptr)
+			/* libmpg123 leaves an empty string here if
+			   the description or the value is empty */
+			continue;
+
 		if (ParseReplayGainTag(replay_gain,
-				       id3v2.extra[i].description.p,
-				       id3v2.extra[i].text.p))
+				       extra.description.p,
+				       extra.text.p))
 			found_replay_gain = true;
 		else if (ParseMixRampTag(mix_ramp,
-					 id3v2.extra[i].description.p,
-					 id3v2.extra[i].text.p))
+					 extra.description.p,
+					 extra.text.p))
 			found_mixramp = true;
 	}
 
@@ -377,7 +384,7 @@ Decode(DecoderClient &client, InputStream *is,
 
 		/* decode */
 
-		unsigned char buffer[8192];
+		unsigned char buffer[8_KiB];
 		size_t nbytes;
 		if (int error = mpg123_read(&handle, buffer, sizeof(buffer), &nbytes);
 		    error != MPG123_OK) {

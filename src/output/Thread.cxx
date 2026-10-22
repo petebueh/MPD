@@ -6,6 +6,7 @@
 #include "Filtered.hxx"
 #include "Client.hxx"
 #include "Domain.hxx"
+#include "mixer/Mixer.hxx"
 #include "lib/fmt/AudioFormatFormatter.hxx"
 #include "lib/fmt/ExceptionFormatter.hxx"
 #include "lib/fmt/RuntimeError.hxx"
@@ -132,6 +133,13 @@ AudioOutputControl::InternalOpen(const AudioFormat in_audio_format,
 
 			source_state = SourceState::OPEN;
 		} catch (...) {
+			if (open)
+				/* the old filter chain has already
+				   been destroyed; close the output,
+				   so the next Open() starts from
+				   scratch */
+				InternalClose(false);
+
 			std::throw_with_nested(FmtRuntimeError("Failed to open filter for {}",
 							       GetLogName()));
 		}
@@ -162,6 +170,12 @@ AudioOutputControl::InternalCloseOutput(bool drain) noexcept
 	open = false;
 
 	const ScopeUnlock unlock(mutex);
+
+	/* close the mixer before the device, because the mixer
+	   may use the device's handle */
+	if (output->mixer != nullptr)
+		output->mixer->LockAutoClose();
+
 	output->CloseOutput(drain);
 }
 
@@ -174,6 +188,12 @@ AudioOutputControl::InternalClose(bool drain) noexcept
 
 	{
 		const ScopeUnlock unlock(mutex);
+
+		/* close the mixer before the device, because the
+		   mixer may use the device's handle */
+		if (output->mixer != nullptr)
+			output->mixer->LockAutoClose();
+
 		output->Close(drain);
 	}
 

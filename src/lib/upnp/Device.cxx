@@ -4,9 +4,12 @@
 #include "Device.hxx"
 #include "Util.hxx"
 #include "protocol/FixString.hxx"
+#include "protocol/Verify.hxx"
 #include "uri/Extract.hxx"
 #include "lib/expat/ExpatParser.hxx"
 #include "util/AllocatedArray.hxx" // for the FixTagString() return value
+
+#include <stdexcept>
 
 #include <string.h>
 
@@ -91,10 +94,25 @@ UPnPDevice::Parse(const std::string_view url, const std::string_view description
 	if (const auto fixed = FixStringUTF8(friendlyName); fixed != nullptr)
 		friendlyName.assign(fixed.data(), fixed.size());
 
+	/* these become part of (neighbor) URIs, too; they cannot be
+	   fixed, so reject the device */
+	if (!VerifyStringUTF8(UDN))
+		throw std::runtime_error{"Malformed UDN in UPnP device description"};
+
+	for (const auto &service : services)
+		if (!VerifyStringUTF8(service.serviceType))
+			throw std::runtime_error{"Malformed service type in UPnP device description"};
+
 	if (!URLBase.empty() && UriGetOrigin(URLBase) != UriGetOrigin(url))
 		/* don't let the device description redirect our
 		   SOAP requests to a different host */
 		URLBase.clear();
+
+	services.remove_if([url](const UPnPService &service){
+		/* same for absolute control URLs */
+		return UriHasScheme(service.controlURL) &&
+			UriGetOrigin(service.controlURL) != UriGetOrigin(url);
+	});
 
 	if (URLBase.empty()) {
 		// The standard says that if the URLBase value is empty, we should use

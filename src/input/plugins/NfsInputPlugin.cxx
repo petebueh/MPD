@@ -85,7 +85,7 @@ NfsInputStream::DoRead()
 		return;
 	}
 
-	size_t nbytes = std::min<size_t>(std::min<uint64_t>(remaining, 32768),
+	size_t nbytes = std::min<size_t>(std::min<uint64_t>(remaining, 32_KiB),
 					 buffer_space);
 
 	try {
@@ -130,6 +130,11 @@ NfsInputStream::DoSeek(offset_type new_offset)
 
 	next_offset = offset = new_offset;
 	SeekDone();
+
+	if (reconnecting)
+		/* the file is being reopened; OnNfsFileOpen() will
+		   start reading at the new offset */
+		return;
 
 	if (!IsIdle())
 		CancelRead();

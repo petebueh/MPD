@@ -58,6 +58,10 @@ UpdateWalk::RemoveExcludedFromDirectory(Directory &directory,
 	const ScopeDatabaseLock protect;
 
 	directory.ForEachChildSafe([&](Directory &child){
+		if (child.IsMount())
+			/* mount points are always preserved */
+			return;
+
 		const auto name_fs =
 			AllocatedPath::FromUTF8(child.GetName());
 
@@ -183,16 +187,8 @@ FindAncestorLoop(Storage &storage, Directory *parent,
 	return 0;
 }
 
-/**
- * The maximum nesting depth of directories.  This limit protects
- * against stack overflows caused by (malicious) remote #Storage
- * implementations which present a directory tree of unlimited depth.
- */
-static constexpr unsigned MAX_DIRECTORY_DEPTH = 64;
-
-[[gnu::pure]]
-static unsigned
-GetDepth(const Directory &directory) noexcept
+unsigned
+UpdateWalk::GetDepth(const Directory &directory) noexcept
 {
 	unsigned depth = 0;
 	for (const Directory *i = directory.parent; i != nullptr; i = i->parent)
@@ -239,6 +235,12 @@ try {
 		{
 			const ScopeDatabaseLock protect;
 			subdir = directory.MakeChild(name);
+
+			if (subdir->IsMount())
+				/* mount points are updated with their
+				   own database, and must not be
+				   modified (or deleted) here */
+				return;
 		}
 
 		assert(&directory == subdir->parent);
