@@ -177,7 +177,7 @@ ReplayGainFilter::Update()
 				 "Failed to update hardware mixer");
 		}
 	} else
-	pv.SetVolume(pcm_float_to_volume(scale));
+		pv.SetVolume(pcm_float_to_volume(scale));
 }
 
 std::unique_ptr<PreparedFilter>
