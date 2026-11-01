@@ -99,8 +99,6 @@ public:
 	 */
 	int LockSetScaledVolume(unsigned base, float scale);
 
-	int LockSetScaledReplayGain(unsigned base, float scale);
-
 private:
 	void _Open();
 	void _Close() noexcept;
