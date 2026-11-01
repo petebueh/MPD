@@ -82,7 +82,7 @@ public:
 	 */
 	void LockSetVolume(unsigned volume);
 
-	void LockSetReplayGain(unsigned rg);
+	int LockSetReplayGain(unsigned base, int scalerg);
 
 	/**
 	 * Set the volume to the given base volume multiplied with
@@ -182,7 +182,7 @@ protected:
 	virtual unsigned ScaleVolume(unsigned volume, float scale) noexcept;
 
 	[[gnu::pure]]
-	virtual unsigned ScaleReplayGain(unsigned rg, float scale) noexcept;
+	virtual unsigned ScaleReplayGain(unsigned rg, int scalerg) noexcept;
 
 
 };
