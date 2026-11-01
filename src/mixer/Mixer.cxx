@@ -52,6 +52,20 @@ Mixer::_Close() noexcept
 	failure = {};
 }
 
+bool
+Mixer::EnsureOpen(bool rethrow)
+{
+	if (open)
+		return true;
+	else if (rethrow && failure)
+		std::rethrow_exception(failure);
+	else if (IsGlobal()) {
+		_Open();
+		return true;
+	} else
+		return false;
+}
+
 int
 Mixer::LockGetVolume()
 {
