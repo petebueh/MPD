@@ -148,7 +148,7 @@ int
 Mixer::LockSetReplayGain(unsigned base, int scalerg)
 {
 	assert(base <= 999);
-	assert(scale >= 0);
+	assert(scalerg >= 0);
 
 	const std::lock_guard lock{mutex};
 
@@ -163,7 +163,7 @@ Mixer::LockSetReplayGain(unsigned base, int scalerg)
 }
 
 unsigned
-Mixer::ScaleReplayGain(unsigned volume, int scalerg) noexcept
+Mixer::ScaleReplayGain(unsigned rg, int scalerg) noexcept
 {
 	return std::clamp(std::lround(rg * scalerg), 0L, 999L);
 }
