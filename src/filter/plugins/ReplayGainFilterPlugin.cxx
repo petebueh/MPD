@@ -148,12 +148,12 @@ ReplayGainFilter::Update()
 		/* update the null mixer replay gain */
 
 		try {
-			const int volume =
-				mixer->LockSetScaledVolume(base, scale);
+			const int rg =
+				mixer->LockSetScaledReplayGain(base, scale);
 			mixer->listener.OnMixerVolumeChanged(*mixer, _rg);
-			if (volume >= 0)
+			if (rg >= 0)
 				mixer->listener.OnMixerVolumeChanged(*mixer,
-								     volume);
+								     rg);
 		} catch (...) {
 			LogError(std::current_exception(),
 				 "Failed to update null mixer replay gain");
