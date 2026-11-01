@@ -3,7 +3,9 @@
 
 #include "Mixer.hxx"
 
+#include <algorithm> // for std::clamp()
 #include <cassert>
+#include <cmath> // for std::lround()
 
 void
 Mixer::LockOpen()
@@ -91,6 +93,30 @@ Mixer::LockSetVolume(unsigned volume)
 }
 
 int
+Mixer::LockSetScaledVolume(unsigned base, float scale)
+{
+	assert(base <= 100);
+	assert(scale >= 0);
+
+	const std::lock_guard lock{mutex};
+
+	if (!EnsureOpen(true))
+		return -1;
+
+	const unsigned volume = ScaleVolume(base, scale);
+	assert(volume <= 100);
+
+	SetVolume(volume);
+	return volume;
+}
+
+unsigned
+Mixer::ScaleVolume(unsigned volume, float scale) noexcept
+{
+	return std::clamp(std::lround(volume * scale), 0L, 100L);
+}
+
+int
 Mixer::LockGetReplayGain()
 {
 	const std::scoped_lock lock{mutex};
@@ -128,4 +154,28 @@ Mixer::LockSetReplayGain(unsigned rg)
 	}
 
 	SetReplayGain(rg);
+}
+
+int
+Mixer::LockSetScaledReplayGain(unsigned base, float scale)
+{
+	assert(base <= 999);
+	assert(scale >= 0);
+
+	const std::lock_guard lock{mutex};
+
+	if (!EnsureOpen(true))
+		return -1;
+
+	const unsigned rg = ScaleReplayGain(base, scale);
+	assert(rg <= 999);
+
+	SetReplayGain(rg);
+	return rg;
+}
+
+unsigned
+Mixer::ScaleReplayGain(unsigned rg, float scale) noexcept
+{
+	return std::clamp(std::lround(rg * scale), 0L, 100L);
 }
