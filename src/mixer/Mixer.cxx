@@ -97,17 +97,8 @@ Mixer::LockSetVolume(unsigned volume)
 
 	const std::lock_guard lock{mutex};
 
-	if (!EnsureOpen(false))
-		return -1;
-
-	if (!open) {
-		if (failure)
-			std::rethrow_exception(failure);
-		else if (IsGlobal())
-			_Open();
-		else
-			return;
-	}
+	if (!EnsureOpen(true))
+		return;
 
 	SetVolume(volume);
 }
@@ -161,23 +152,14 @@ Mixer::LockGetReplayGain()
 }
 
 void
-Mixer::LockSetReplayGain(unsigned rg)
+Mixer::LockSetVReplayGain(unsigned rg)
 {
 	assert(rg <= 999);
 
-	const std::scoped_lock lock{mutex};
+	const std::lock_guard lock{mutex};
 
-	if (!EnsureOpen(false))
-		return -1;
-
-	if (!open) {
-		if (failure)
-			std::rethrow_exception(failure);
-		else if (IsGlobal())
-			_Open();
-		else
-			return;
-	}
+	if (!EnsureOpen(true))
+		return;
 
 	SetReplayGain(rg);
 }
