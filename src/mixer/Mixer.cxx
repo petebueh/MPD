@@ -144,18 +144,31 @@ Mixer::LockGetReplayGain()
 	}
 }
 
+void
+Mixer::LockSetReplayGain(unsigned rg)
+{
+	assert(rg <= 999);
+
+	const std::lock_guard lock{mutex};
+
+	if (!EnsureOpen(true))
+		return;
+
+	SetReplayGain(rg);
+}
+
 int
-Mixer::LockSetReplayGain(unsigned base, int scalerg)
+Mixer::LockSetScaledReplayGain(unsigned base, float scale)
 {
 	assert(base <= 999);
-	assert(scalerg >= 0);
+	assert(scale >= 0);
 
 	const std::lock_guard lock{mutex};
 
 	if (!EnsureOpen(true))
 		return -1;
 
-	const unsigned rg = ScaleReplayGain(base, scalerg);
+	const unsigned rg = ScaleReplayGain(base, scale);
 	assert(rg <= 999);
 
 	SetReplayGain(rg);
@@ -163,7 +176,7 @@ Mixer::LockSetReplayGain(unsigned base, int scalerg)
 }
 
 unsigned
-Mixer::ScaleReplayGain(unsigned rg, int scalerg) noexcept
+Mixer::ScaleReplayGain(unsigned rg, float scale) noexcept
 {
-	return std::clamp(std::lround(rg * scalerg), 0L, 999L);
+	return std::clamp(std::lround(rg * scale), 0L, 999L);
 }
