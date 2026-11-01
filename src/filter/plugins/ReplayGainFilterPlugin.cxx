@@ -150,7 +150,7 @@ ReplayGainFilter::Update()
 		try {
 			const int _rg =
 				mixer->LockSetScaledReplayGain(base, scale);
-			mixer->listener.OnMixerVolumeChanged(*mixer, _rg);
+
 			if (_rg >= 0)
 				mixer->listener.OnMixerVolumeChanged(*mixer,
 								     _rg);
