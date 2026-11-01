@@ -73,13 +73,6 @@ Mixer::LockGetVolume()
 
 	if (!EnsureOpen(false))
 		return -1;
-	
-	if (!open) {
-		if (IsGlobal() && !failure)
-			_Open();
-		else
-			return -1;
-	}
 
 	try {
 		return GetVolume();
@@ -152,7 +145,7 @@ Mixer::LockGetReplayGain()
 }
 
 void
-Mixer::LockSetVReplayGain(unsigned rg)
+Mixer::LockSetReplayGain(unsigned rg)
 {
 	assert(rg <= 999);
 
