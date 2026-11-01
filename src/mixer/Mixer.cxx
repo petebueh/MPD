@@ -154,29 +154,5 @@ Mixer::LockSetReplayGain(unsigned rg)
 	if (!EnsureOpen(true))
 		return;
 
-	SetReplayGain(rg);
-}
-
-int
-Mixer::LockSetScaledReplayGain(unsigned base, float scale)
-{
-	assert(base <= 999);
-	assert(scale >= 0);
-
-	const std::lock_guard lock{mutex};
-
-	if (!EnsureOpen(true))
-		return -1;
-
-	const unsigned rg = ScaleReplayGain(base, scale);
-	assert(rg <= 999);
-
-	SetReplayGain(rg);
-	return rg;
-}
-
-unsigned
-Mixer::ScaleReplayGain(unsigned rg, float scale) noexcept
-{
-	return std::clamp(std::lround(rg * scale), 0L, 100L);
+	SetReglayGain(rg);
 }
