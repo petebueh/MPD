@@ -144,15 +144,26 @@ Mixer::LockGetReplayGain()
 	}
 }
 
-void
-Mixer::LockSetReplayGain(unsigned rg)
+int
+Mixer::LockSetReplayGain(unsigned base, int scalerg)
 {
-	assert(rg <= 999);
+	assert(base <= 999);
+	assert(scale >= 0);
 
 	const std::lock_guard lock{mutex};
 
 	if (!EnsureOpen(true))
-		return;
+		return -1;
 
-	SetReglayGain(rg);
+	const unsigned rg = ScaleReplayGain(base, scalerg);
+	assert(rg <= 999);
+
+	SetReplayGain(rg);
+	return rg;
+}
+
+unsigned
+Mixer::ScaleReplayGain(unsigned volume, int scalerg) noexcept
+{
+	return std::clamp(std::lround(rg * scalerg), 0L, 999L);
 }
