@@ -23,6 +23,7 @@
 #include "fs/AllocatedPath.hxx"
 #include "Stats.hxx"
 #include "PlaylistFile.hxx"
+#include "PlaylistDirectory.hxx"
 #include "db/PlaylistVector.hxx"
 #include "client/Client.hxx"
 #include "client/Response.hxx"
@@ -162,9 +163,11 @@ handle_lsinfo_relative(Client &client, Response &r, const std::string_view uri)
 	(void)client;
 #endif
 
-	if (!client.ProtocolFeatureEnabled(PF_HIDE_PLAYLISTS_IN_ROOT) && isRootDirectory(uri)) {
+	if (!client.ProtocolFeatureEnabled(PF_HIDE_PLAYLISTS_IN_ROOT) && isRootDirectory(uri) &&
+	    client.GetInstance().stored_playlists) {
 		try {
 			print_spl_list(r, ListPlaylistFiles());
+			print_spl_list(r, ListPlaylistFiles(*client.GetInstance().stored_playlists));
 		} catch (...) {
 			LogError(std::current_exception());
 		}
@@ -270,7 +273,7 @@ handle_update(Client &client, Request args, Response &r, bool discard)
 		if (*path == 0 || StringIsEqual(path, "/"))
 			/* backwards compatibility with MPD 0.15 */
 			path = "";
-		else if (!uri_safe_local(path)) {
+		else if (!UriIsCanonicalRelativePath(path)) {
 			r.Error(ACK_ERROR_ARG, "Malformed path");
 			return CommandResult::ERROR;
 		}
@@ -389,8 +392,8 @@ handle_config(Client &client, [[maybe_unused]] Request args, Response &r)
 	}
 #endif
 
-	if (const auto spl_path = map_spl_path(); !spl_path.IsNull())
-		r.Fmt("playlist_directory: {}\n", spl_path.ToUTF8());
+	if (const auto *stored_playlists = client.GetInstance().GetStoredPlaylists())
+		r.Fmt("playlist_directory: {}\n", stored_playlists->GetPath().ToUTF8());
 
 #ifdef HAVE_PCRE
 	r.Write("pcre: 1\n");
