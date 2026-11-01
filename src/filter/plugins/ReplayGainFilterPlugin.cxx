@@ -138,9 +138,11 @@ void
 ReplayGainFilter::Update()
 {
 	float scale = 1;
+	int scalerg = 1;
 	if (mode != ReplayGainMode::OFF) {
 		const auto &tuple = info.Get(mode);
 		scale = tuple.CalculateScale(config);
+		scalerg = tuple.CalculateScale(config);
 		FmtDebug(replay_gain_domain, "scale={}\n", scale);
 	}
 
@@ -149,7 +151,7 @@ ReplayGainFilter::Update()
 
 		try {
 			const int _rg =
-				mixer->LockSetScaledReplayGain(base, scale);
+				mixer->LockSetReplayGain(base, scalerg);
 			mixer->listener.OnMixerVolumeChanged(*mixer, _rg);
 			if (_rg >= 0)
 				mixer->listener.OnMixerVolumeChanged(*mixer,
