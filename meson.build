@@ -436,6 +436,7 @@ sources = [
   'src/TagAny.cxx',
   'src/TimePrint.cxx',
   'src/mixer/Memento.cxx',
+  'src/PlaylistDirectory.cxx',
   'src/PlaylistFile.cxx',
 ]
 
@@ -452,6 +453,7 @@ if not is_android
   ]
 else
   sources += [
+    'src/android/Bridge.cxx',
     'src/android/Context.cxx',
     'src/android/AudioManager.cxx',
     'src/android/Environment.cxx',
@@ -485,6 +487,7 @@ subdir('src/io/fs')
 subdir('src/io/uring')
 subdir('src/system')
 subdir('src/system/linux')
+subdir('src/system/windows')
 subdir('src/thread')
 subdir('src/net')
 subdir('src/memory')

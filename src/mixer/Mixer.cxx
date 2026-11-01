@@ -52,17 +52,27 @@ Mixer::_Close() noexcept
 	failure = {};
 }
 
+bool
+Mixer::EnsureOpen(bool rethrow)
+{
+	if (open)
+		return true;
+	else if (rethrow && failure)
+		std::rethrow_exception(failure);
+	else if (IsGlobal()) {
+		_Open();
+		return true;
+	} else
+		return false;
+}
+
 int
 Mixer::LockGetVolume()
 {
 	const std::lock_guard lock{mutex};
 
-	if (!open) {
-		if (IsGlobal() && !failure)
-			_Open();
-		else
-			return -1;
-	}
+	if (!EnsureOpen(false))
+		return -1;
 
 	try {
 		return GetVolume();
@@ -80,102 +90,8 @@ Mixer::LockSetVolume(unsigned volume)
 
 	const std::lock_guard lock{mutex};
 
-	if (!open) {
-		if (failure)
-			std::rethrow_exception(failure);
-		else if (IsGlobal())
-			_Open();
-		else
-			return;
-	}
+	if (!EnsureOpen(true))
+		return;
 
 	SetVolume(volume);
-}
-
-int
-Mixer::LockSetScaledVolume(unsigned base, float scale)
-{
-	assert(base <= 100);
-	assert(scale >= 0);
-
-	const std::lock_guard lock{mutex};
-
-	if (!EnsureOpen(true))
-		return -1;
-
-	const unsigned volume = ScaleVolume(base, scale);
-	assert(volume <= 100);
-
-	SetVolume(volume);
-	return volume;
-}
-
-unsigned
-Mixer::ScaleVolume(unsigned volume, float scale) noexcept
-{
-	return std::clamp(std::lround(volume * scale), 0L, 100L);
-}
-
-int
-Mixer::LockGetReplayGain()
-{
-	const std::scoped_lock lock{mutex};
-
-	if (!open) {
-		if (IsGlobal() && !failure)
-			_Open();
-		else
-			return -1;
-	}
-
-	try {
-		return GetReplayGain();
-	} catch (...) {
-		_Close();
-		failure = std::current_exception();
-		throw;
-	}
-}
-
-void
-Mixer::LockSetReplayGain(unsigned rg)
-{
-	assert(rg <= 999);
-
-	const std::scoped_lock lock{mutex};
-
-	if (!open) {
-		if (failure)
-			std::rethrow_exception(failure);
-		else if (IsGlobal())
-			_Open();
-		else
-			return;
-	}
-
-	SetReplayGain(rg);
-}
-
-int
-Mixer::LockSetScaledReplayGain(unsigned base, float scale)
-{
-	assert(base <= 999);
-	assert(scale >= 0);
-
-	const std::lock_guard lock{mutex};
-
-	if (!EnsureOpen(true))
-		return -1;
-
-	const unsigned rg = ScaleReplayGain(base, scale);
-	assert(rg <= 999);
-
-	SetReplayGain(rg);
-	return rg;
-}
-
-unsigned
-Mixer::ScaleReplayGain(unsigned rg, float scale) noexcept
-{
-	return std::clamp(std::lround(rg * scale), 0L, 100L);
 }

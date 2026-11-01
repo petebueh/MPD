@@ -31,7 +31,6 @@
 #include "Instance.hxx"
 #include "protocol/IdleFlags.hxx"
 #include "Log.hxx"
-#include "Mapper.hxx"
 
 #include "db/Features.hxx" // for ENABLE_DATABASE
 #ifdef ENABLE_DATABASE
@@ -167,7 +166,6 @@ handle_lsinfo_relative(Client &client, Response &r, const std::string_view uri)
 	    client.GetInstance().stored_playlists) {
 		try {
 			print_spl_list(r, ListPlaylistFiles());
-			print_spl_list(r, ListPlaylistFiles(*client.GetInstance().stored_playlists));
 		} catch (...) {
 			LogError(std::current_exception());
 		}
