@@ -2,6 +2,7 @@
 // Copyright The Music Player Daemon Project
 
 #include "AlsaMixerPlugin.hxx"
+#include "DesiredVolume.hxx"
 #include "VolumeMapping.hxx"
 #include "lib/alsa/NonBlock.hxx"
 #include "lib/alsa/Error.hxx"
@@ -25,6 +26,7 @@
 #include <fmt/format.h>
 
 #include <iterator> // for std::back_inserter()
+#include <stdexcept>
 #include <string>
 
 #define VOLUME_MIXER_ALSA_DEFAULT		"default"
@@ -94,36 +96,24 @@ class AlsaMixer final : public Mixer {
 	unsigned int index;
 
 	/**
-	 * Protects #handle, #elem, #desired_volume and
-	 * #resulting_volume while #monitor exists, because libasound
-	 * is not thread-safe, and #monitor uses the #snd_mixer_t in
-	 * the #EventLoop thread while SetVolume() and GetVolume() are
-	 * called from other threads.
+	 * Protects #handle, #elem and #desired_volume while #monitor
+	 * exists, because libasound is not thread-safe, and #monitor
+	 * uses the #snd_mixer_t in the #EventLoop thread while
+	 * SetVolume(), GetVolume() and ScaleVolume() are called from
+	 * other threads.
 	 */
 	Mutex handle_mutex;
 
 	snd_mixer_t *handle;
+
+	/**
+	 * nullptr after the element has been removed
+	 */
 	snd_mixer_elem_t *elem;
 
 	AlsaMixerMonitor *monitor;
 
-	/**
-	 * These fields are our workaround for rounding errors when
-	 * the resolution of a mixer knob isn't fine enough to
-	 * represent all 101 possible values (0..100).
-	 *
-	 * "desired_volume" is the percent value passed to
-	 * SetVolume(), and "resulting_volume" is the volume which was
-	 * actually set, and would be returned by the next
-	 * GetPercentVolume() call.
-	 *
-	 * When GetVolume() is called, we compare the
-	 * "resulting_volume" with the value returned by
-	 * GetPercentVolume(), and if it's the same, we're still on
-	 * the same value that was previously set (but may have been
-	 * rounded down or up).
-	 */
-	int desired_volume, resulting_volume;
+	DesiredVolume desired_volume;
 
 public:
 	AlsaMixer(EventLoop &_event_loop, MixerListener &_listener) noexcept
@@ -222,20 +212,25 @@ AlsaMixer::ElemCallback(snd_mixer_elem_t *elem, unsigned mask) noexcept
 	AlsaMixer &mixer = *(AlsaMixer *)
 		snd_mixer_elem_get_callback_private(elem);
 
+	if (mask == SND_CTL_EVENT_MASK_REMOVE) {
+		/* libasound is going to free the element */
+		assert(elem == mixer.elem);
+		mixer.elem = nullptr;
+		return 0;
+	}
+
 	if (mask & SND_CTL_EVENT_MASK_VALUE) {
-		int volume = mixer.GetPercentVolume();
+		const int volume = mixer.GetPercentVolume();
 
-		if (mixer.resulting_volume >= 0 &&
-		    volume == mixer.resulting_volume)
-			/* still the same volume (this might be a
-			   callback caused by SetVolume()) - switch to
-			   desired_volume */
-			volume = mixer.desired_volume;
-		else
+		if (!mixer.desired_volume.IsCurrent(volume))
 			/* flush */
-			mixer.desired_volume = mixer.resulting_volume = -1;
+			mixer.desired_volume.Clear();
 
-		mixer.listener.OnMixerVolumeChanged(mixer, volume);
+		/* if it's still the same volume (this might be a
+		   callback caused by SetVolume()), this switches to
+		   the desired volume */
+		mixer.listener.OnMixerVolumeChanged(mixer,
+						    mixer.desired_volume.Translate(volume));
 	}
 
 	return 0;
@@ -370,7 +365,7 @@ AlsaMixer::Setup()
 void
 AlsaMixer::Open()
 {
-	desired_volume = resulting_volume = -1;
+	desired_volume.Clear();
 
 	device = DetermineDevice();
 
@@ -397,7 +392,8 @@ AlsaMixer::Close() noexcept
 	   anymore, therefore we don't need to lock #handle_mutex */
 	delete monitor;
 
-	snd_mixer_elem_set_callback(elem, nullptr);
+	if (elem != nullptr)
+		snd_mixer_elem_set_callback(elem, nullptr);
 	snd_mixer_close(handle);
 }
 
@@ -414,12 +410,12 @@ AlsaMixer::GetVolume()
 	if (err < 0)
 		throw Alsa::MakeError(err, "snd_mixer_handle_events() failed");
 
-	int volume = GetPercentVolume();
-	if (resulting_volume >= 0 && volume == resulting_volume)
-		/* we're still on the value passed to SetVolume() */
-		volume = desired_volume;
+	if (elem == nullptr)
+		throw std::runtime_error{"ALSA mixer control was removed"};
 
-	return volume;
+	/* if we're still on the value passed to SetVolume(), this
+	   returns the desired volume */
+	return desired_volume.Translate(GetPercentVolume());
 }
 
 void
@@ -429,18 +425,26 @@ AlsaMixer::SetVolume(unsigned volume)
 
 	const std::scoped_lock lock{handle_mutex};
 
+	if (elem == nullptr)
+		throw std::runtime_error{"ALSA mixer control was removed"};
+
 	int err = set_normalized_playback_volume(elem, 0.01*volume, 1);
 	if (err < 0)
 		throw Alsa::MakeError(err, "failed to set ALSA volume");
 
-	desired_volume = volume;
-	resulting_volume = GetPercentVolume();
+	desired_volume.Set(volume, GetPercentVolume());
 }
 
 unsigned
 AlsaMixer::ScaleVolume(unsigned volume, float scale) noexcept
 {
 	assert(handle != nullptr);
+
+	const std::lock_guard lock{handle_mutex};
+
+	if (elem == nullptr)
+		/* the element was removed */
+		return volume;
 
 	return NormalizedToPercent(scale_normalized_playback_volume(elem,
 								    0.01 * volume,
